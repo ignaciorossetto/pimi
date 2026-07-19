@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Pimi — Cuidado de mascotas de confianza",
   description:
-    "Pimi conecta dueños de mascotas con cuidadores verificados en Buenos Aires.",
+    "Pimi conecta dueños de mascotas con cuidadores verificados en Córdoba.",
 };
 
 export default function RootLayout({

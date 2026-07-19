@@ -16,7 +16,7 @@ export default async function AdminHomePage() {
     { count: flaggedCount },
     { data: pendingList },
     { data: flaggedList },
-    { data: pagosParaLiberar },
+    { data: pagosRetenidos },
     { data: simulacionSetting },
   ] = await Promise.all([
     supabase.from("profiles").select("*", { count: "exact", head: true }),
@@ -45,13 +45,16 @@ export default async function AdminHomePage() {
       .eq("tipo_evento", "mensaje_flageado")
       .order("created_at", { ascending: false })
       .limit(10),
+    // Todos los pagos retenidos, no solo los vencidos — antes este filtro
+    // (.lte fecha_liberacion) dejaba afuera cualquier pago retenido cuyo
+    // cuidado todavía no había terminado, así que el admin no tenía forma
+    // de ver esa plata en ningún lado del panel.
     supabase
       .from("payments")
       .select("id, booking_id, monto, comision_pimi, fecha_liberacion")
       .eq("estado", "retenido")
-      .lte("fecha_liberacion", new Date().toISOString())
       .order("fecha_liberacion", { ascending: true })
-      .limit(20),
+      .limit(50),
     supabase
       .from("app_settings")
       .select("value")
@@ -59,10 +62,17 @@ export default async function AdminHomePage() {
       .maybeSingle(),
   ]);
 
+  const ahora = new Date();
+  const totalRetenido = (pagosRetenidos ?? []).reduce(
+    (sum, p) => sum + Number(p.monto),
+    0,
+  );
+
   const metrics = [
     { label: "Usuarios totales", value: usersCount ?? 0 },
     { label: "Verificaciones pendientes", value: pendingVerifications ?? 0 },
     { label: "Reservas activas", value: activeBookings ?? 0 },
+    { label: "Plata retenida", value: `$${totalRetenido}` },
     { label: "Mensajes marcados", value: flaggedCount ?? 0 },
     { label: "Eventos registrados", value: eventsCount ?? 0 },
   ];
@@ -71,7 +81,7 @@ export default async function AdminHomePage() {
     (simulacionSetting?.value as { enabled?: boolean } | null)?.enabled,
   );
 
-  const bookingIds = [...new Set((pagosParaLiberar ?? []).map((p) => p.booking_id))];
+  const bookingIds = [...new Set((pagosRetenidos ?? []).map((p) => p.booking_id))];
   const { data: bookingsInfo } = bookingIds.length
     ? await supabase
         .from("bookings")
@@ -100,7 +110,7 @@ export default async function AdminHomePage() {
       <h1 className="text-2xl font-bold">Panel de administración</h1>
       <p className="mt-1 text-background/60">Métricas generales de Pimi.</p>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {metrics.map((m) => (
           <div
             key={m.label}
@@ -120,28 +130,32 @@ export default async function AdminHomePage() {
       </div>
 
       <div className="mt-10">
-        <h2 className="text-lg font-semibold">Pagos a liberar</h2>
+        <h2 className="text-lg font-semibold">Pagos retenidos</h2>
         <p className="mt-1 text-xs text-background/50">
-          Reservas con pago retenido cuya fecha de liberación (48hs después
-          del cuidado) ya pasó. Liberar acá es un registro manual — todavía
-          hay que pagarle al cuidador su parte por fuera de la app en v1.
+          Toda la plata que Pimi tiene retenida ahora mismo. "Vencido"
+          significa que ya pasaron las 48hs post-cuidado y se puede liberar
+          — liberar acá es un registro manual, todavía hay que pagarle al
+          cuidador su parte por fuera de la app en v1.
         </p>
         <div className="mt-3 overflow-hidden rounded-2xl border border-background/15">
-          {pagosParaLiberar && pagosParaLiberar.length > 0 ? (
+          {pagosRetenidos && pagosRetenidos.length > 0 ? (
             <table className="w-full text-left text-sm">
               <thead className="bg-background/5 text-background/60">
                 <tr>
                   <th className="px-4 py-2">Cuidador</th>
                   <th className="px-4 py-2">Mascota</th>
                   <th className="px-4 py-2">A liberar</th>
-                  <th className="px-4 py-2">Vencido desde</th>
+                  <th className="px-4 py-2">Liberación</th>
                   <th className="px-4 py-2"></th>
                 </tr>
               </thead>
               <tbody>
-                {pagosParaLiberar.map((p) => {
+                {pagosRetenidos.map((p) => {
                   const booking = bookingMap.get(p.booking_id);
                   const aLiberar = Number(p.monto) - Number(p.comision_pimi);
+                  const vencido = Boolean(
+                    p.fecha_liberacion && new Date(p.fecha_liberacion) <= ahora,
+                  );
                   return (
                     <tr key={p.id} className="border-t border-background/10">
                       <td className="px-4 py-2">
@@ -152,12 +166,22 @@ export default async function AdminHomePage() {
                       </td>
                       <td className="px-4 py-2 font-medium">${aLiberar}</td>
                       <td className="px-4 py-2">
-                        {p.fecha_liberacion
-                          ? new Date(p.fecha_liberacion).toLocaleDateString("es-AR")
-                          : "—"}
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            vencido
+                              ? "bg-brand/15 text-brand"
+                              : "bg-background/10 text-background/60"
+                          }`}
+                        >
+                          {vencido
+                            ? "Vencido, listo para liberar"
+                            : p.fecha_liberacion
+                              ? `Programado ${new Date(p.fecha_liberacion).toLocaleDateString("es-AR")}`
+                              : "Sin fecha"}
+                        </span>
                       </td>
                       <td className="px-4 py-2 text-right">
-                        <LiberarPagoButton paymentId={p.id} />
+                        {vencido && <LiberarPagoButton paymentId={p.id} />}
                       </td>
                     </tr>
                   );
@@ -166,7 +190,7 @@ export default async function AdminHomePage() {
             </table>
           ) : (
             <p className="p-6 text-sm text-background/60">
-              No hay pagos pendientes de liberar.
+              No hay pagos retenidos ahora mismo.
             </p>
           )}
         </div>

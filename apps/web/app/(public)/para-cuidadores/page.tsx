@@ -84,7 +84,7 @@ export default function ParaCuidadoresPage() {
       <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-14 md:grid-cols-2 md:pt-20">
         <div className="flex flex-col gap-6 text-center md:text-left">
           <span className="mx-auto rounded-full bg-accent/10 px-4 py-1 text-sm font-medium text-accent md:mx-0">
-            Para cuidadores · AMBA
+            Para cuidadores · Córdoba Capital
           </span>
           <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
             Ganá dinero cuidando mascotas, a tu manera.

@@ -163,7 +163,7 @@ export function RegisterForm({ isCaregiver }: { isCaregiver: boolean }) {
               label="Zona / barrio"
               id="zona"
               type="text"
-              placeholder="Ej. Belgrano, CABA"
+              placeholder="Ej. Nueva Córdoba, Córdoba"
               required
             />
             <Field

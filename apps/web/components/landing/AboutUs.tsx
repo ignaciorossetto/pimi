@@ -11,7 +11,7 @@ const pillars = [
     icon: HeartIcon,
     title: "Hecho para mascotas argentinas",
     description:
-      "Empezamos en AMBA, entendiendo cómo se vive el cuidado de mascotas acá.",
+      "Empezamos en Córdoba Capital, entendiendo cómo se vive el cuidado de mascotas acá.",
   },
   {
     icon: PawIcon,

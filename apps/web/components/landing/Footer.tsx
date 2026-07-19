@@ -30,7 +30,7 @@ export function Footer() {
         </nav>
       </div>
       <div className="border-t border-foreground/10 px-6 py-4 text-center text-xs text-foreground/40">
-        © {new Date().getFullYear()} Pimi. AMBA, Argentina.
+        © {new Date().getFullYear()} Pimi. Córdoba, Argentina.
       </div>
     </footer>
   );

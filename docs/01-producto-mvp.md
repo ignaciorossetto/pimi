@@ -24,7 +24,7 @@ Pilares:
 ## 3. Usuarios objetivo
 
 ### Dueños de mascotas
-- Viven en CABA / AMBA (fase 1).
+- Viven en Córdoba Capital (fase 1).
 - Tienen perro y/o gato.
 - Viajan por trabajo o vacaciones y no quieren usar guarderías tradicionales.
 - Sensibles a la confianza: quieren ver perfil, reseñas, fotos, y idealmente verificación de identidad del cuidador.
@@ -49,7 +49,7 @@ Pilares:
 ### Fuera de alcance (v1, evaluar después)
 - Seguro veterinario propio o alianzas con seguros (v2) — ver nota en sección 8.
 - Chat con IA / matching automático avanzado (v2, una vez haya datos).
-- Multi-ciudad fuera de AMBA.
+- Multi-ciudad fuera de Córdoba Capital.
 - App nativa (arrancamos con web app responsive; evaluamos apps nativas cuando haya tracción).
 - Servicios adicionales (peluquería, veterinaria a domicilio, paseos recurrentes tipo suscripción).
 
@@ -160,7 +160,7 @@ en eso.
 
 ## 9. Métricas de éxito iniciales (fase de validación)
 
-- Número de cuidadores verificados activos en AMBA.
+- Número de cuidadores verificados activos en Córdoba Capital.
 - Número de reservas completadas por semana.
 - Tasa de conversión búsqueda → reserva.
 - NPS / calificación promedio post-servicio.

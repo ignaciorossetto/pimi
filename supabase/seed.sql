@@ -47,7 +47,7 @@ on conflict (id) do update set nombre = excluded.nombre, roles = excluded.roles;
 insert into public.caregiver_profiles (
   user_id, zona, bio, tarifa_base, tipos_de_servicio, radio_cobertura_km, verificado
 )
-select id, 'Belgrano, CABA',
+select id, 'Nueva Córdoba, Córdoba',
   'Amante de los animales, disponible fines de semana y feriados.',
   8000, array['hospedaje', 'paseo'], 5, false
 from auth.users

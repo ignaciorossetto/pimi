@@ -12,7 +12,7 @@ export function Hero() {
     <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-14 md:grid-cols-2 md:pt-20">
       <div className="flex flex-col gap-6 text-center md:text-left">
         <span className="mx-auto rounded-full bg-brand/10 px-4 py-1 text-sm font-medium text-brand md:mx-0">
-          AMBA · Fase de validación
+          Córdoba Capital · Fase de validación
         </span>
         <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
           Tu mascota, en buenas manos, mientras vos no estás.

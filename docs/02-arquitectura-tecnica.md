@@ -142,7 +142,7 @@ Flujo de solicitud/aceptación, integración Mercado Pago con retención, chat l
 **Fase 3 — Confianza y reputación**
 Reseñas bidireccionales, badges de verificación, mecanismo básico de disputa/soporte.
 
-**Fase 4 — Lanzamiento AMBA**
+**Fase 4 — Lanzamiento Córdoba Capital**
 Landing optimizada para SEO/marketing, tracking de eventos, plan de adquisición inicial.
 
 ## 6. Próximos pasos técnicos

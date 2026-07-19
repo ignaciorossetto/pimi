@@ -102,7 +102,7 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
             id="zona"
             name="zona"
             defaultValue={params.zona ?? ""}
-            placeholder="Ej. Belgrano, CABA"
+            placeholder="Ej. Nueva Córdoba, Córdoba"
             className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
           />
         </div>
