@@ -190,13 +190,13 @@ export default async function AdminHomePage() {
                     row: {
                       tipo_documento: string;
                       created_at: string;
-                      profiles: { email: string } | null;
+                      profiles: { email: string }[] | null;
                     },
                     i: number,
                   ) => (
                     <tr key={i} className="border-t border-background/10">
                       <td className="px-4 py-2">
-                        {row.profiles?.email ?? "—"}
+                        {row.profiles?.[0]?.email ?? "—"}
                       </td>
                       <td className="px-4 py-2">{row.tipo_documento}</td>
                       <td className="px-4 py-2">
@@ -239,13 +239,13 @@ export default async function AdminHomePage() {
                     row: {
                       created_at: string;
                       metadata: { preview?: string } | null;
-                      profiles: { email: string } | null;
+                      profiles: { email: string }[] | null;
                     },
                     i: number,
                   ) => (
                     <tr key={i} className="border-t border-background/10">
                       <td className="px-4 py-2">
-                        {row.profiles?.email ?? "—"}
+                        {row.profiles?.[0]?.email ?? "—"}
                       </td>
                       <td className="max-w-xs truncate px-4 py-2 text-background/70">
                         {row.metadata?.preview ?? "—"}
