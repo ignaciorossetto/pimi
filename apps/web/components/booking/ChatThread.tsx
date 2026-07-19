@@ -37,8 +37,25 @@ export function ChatThread({
     if (data) setMessages(data);
   }
 
+  async function markAsRead() {
+    const supabase = createClient();
+    // Se considera "leído" el momento en que se abre/refresca el chat.
+    // No cubre mensajes que lleguen mientras la pantalla queda abierta sin
+    // recargar — para eso habría que marcar de nuevo en cada poll, que no
+    // vale la pena por el volumen de escrituras que generaría.
+    await supabase.from("message_reads").upsert(
+      {
+        booking_id: bookingId,
+        user_id: currentUserId,
+        last_read_at: new Date().toISOString(),
+      },
+      { onConflict: "booking_id,user_id" },
+    );
+  }
+
   useEffect(() => {
     loadMessages();
+    markAsRead();
     const interval = setInterval(loadMessages, 4000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -78,6 +95,7 @@ export function ChatThread({
 
     setText("");
     loadMessages();
+    markAsRead();
   }
 
   return (

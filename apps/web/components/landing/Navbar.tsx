@@ -20,16 +20,16 @@ export function Navbar() {
           </a>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           <a
             href="/login"
-            className="hidden rounded-lg px-4 py-2 text-sm font-semibold text-foreground/80 transition hover:bg-foreground/5 sm:inline-block"
+            className="inline-block rounded-lg px-2.5 py-2 text-sm font-semibold text-foreground/80 transition hover:bg-foreground/5 sm:px-4"
           >
             Iniciar sesión
           </a>
           <a
             href="/registro"
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark"
+            className="rounded-lg bg-brand px-2.5 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark sm:px-4"
           >
             Crear cuenta
           </a>

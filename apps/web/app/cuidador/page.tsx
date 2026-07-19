@@ -1,7 +1,9 @@
 import { CaregiverProfileCard } from "@/components/dashboard/CaregiverProfileCard";
 import { TierBadge } from "@/components/booking/TierBadge";
+import { UnreadMessagesBanner } from "@/components/dashboard/UnreadMessagesBanner";
 import { ESTADO_COLOR, ESTADO_LABEL } from "@/lib/bookings/labels";
 import { getDisplayName } from "@/lib/auth/display-name";
+import { getUnreadSummary } from "@/lib/messages/unread";
 import { proximoTier } from "@/lib/payments/tiers";
 import { requireUser } from "@/lib/auth/require-user";
 import { createClient } from "@/lib/supabase/server";
@@ -55,7 +57,7 @@ export default async function CuidadorHomePage() {
   const ownerIds = [...new Set((bookings ?? []).map((b) => b.owner_id))];
   const petIds = [...new Set((bookings ?? []).map((b) => b.pet_id))];
 
-  const [{ data: owners }, { data: pets }, { data: payments }] =
+  const [{ data: owners }, { data: pets }, { data: payments }, unread] =
     await Promise.all([
       ownerIds.length
         ? supabase.from("profiles").select("id, nombre").in("id", ownerIds)
@@ -77,6 +79,7 @@ export default async function CuidadorHomePage() {
               fecha_liberacion: string | null;
             }[],
           }),
+      getUnreadSummary(supabase, user.id, bookingIds),
     ]);
 
   const ownerMap = new Map((owners ?? []).map((o) => [o.id, o.nombre]));
@@ -151,67 +154,75 @@ export default async function CuidadorHomePage() {
 
       <section className="mt-10">
         <h2 className="text-lg font-semibold">Reservas</h2>
-        {sortedBookings.length > 0 ? (
-          <ul className="mt-4 flex flex-col gap-3">
-            {sortedBookings.map((b) => {
-              const payment = paymentMap.get(b.id);
-              const destacada = confirmadaYPagada(b.id, b.estado);
-              const retenido = payment?.estado === "retenido";
-              const aCobrar = payment
-                ? Number(payment.monto) - Number(payment.comision_pimi)
-                : null;
 
-              return (
-                <li key={b.id}>
-                  <a
-                    href={`/reservas/${b.id}`}
-                    className={`flex flex-col gap-2 rounded-2xl p-5 transition sm:flex-row sm:items-center sm:justify-between ${
-                      destacada
-                        ? "border-2 border-accent/40 bg-accent/5 shadow-sm hover:border-accent/60"
-                        : "border border-foreground/10 hover:border-accent/40"
-                    }`}
-                  >
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold">
-                          {petMap.get(b.pet_id) ?? "Mascota"} de{" "}
-                          {ownerMap.get(b.owner_id) ?? "dueño"}
-                        </p>
-                        {destacada && (
-                          <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-white">
-                            ✓ Confirmada y pagada
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-1 text-sm text-foreground/60">
-                        {b.fecha_inicio} → {b.fecha_fin} · ${b.monto}
-                      </p>
-                      {retenido && aCobrar !== null && (
-                        <p className="mt-1 text-sm font-semibold text-accent">
-                          ${aCobrar} retenidos hasta el{" "}
-                          {payment?.fecha_liberacion
-                            ? formatFecha(payment.fecha_liberacion)
-                            : "—"}
-                        </p>
-                      )}
-                    </div>
-                    <span
-                      className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-medium ${
-                        ESTADO_COLOR[b.estado] ?? "bg-foreground/10"
+        <div className="mt-4">
+          <UnreadMessagesBanner
+            count={unread.count}
+            href={unread.latestBookingId ? `/reservas/${unread.latestBookingId}` : null}
+          />
+
+          {sortedBookings.length > 0 ? (
+            <ul className="flex flex-col gap-3">
+              {sortedBookings.map((b) => {
+                const payment = paymentMap.get(b.id);
+                const destacada = confirmadaYPagada(b.id, b.estado);
+                const retenido = payment?.estado === "retenido";
+                const aCobrar = payment
+                  ? Number(payment.monto) - Number(payment.comision_pimi)
+                  : null;
+
+                return (
+                  <li key={b.id}>
+                    <a
+                      href={`/reservas/${b.id}`}
+                      className={`flex flex-col gap-2 rounded-2xl p-5 transition sm:flex-row sm:items-center sm:justify-between ${
+                        destacada
+                          ? "border-2 border-accent/40 bg-accent/5 shadow-sm hover:border-accent/60"
+                          : "border border-foreground/10 hover:border-accent/40"
                       }`}
                     >
-                      {ESTADO_LABEL[b.estado] ?? b.estado}
-                    </span>
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="mt-4 text-sm text-foreground/60">
-            Todavía no recibiste solicitudes de reserva.
-          </p>
-        )}
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold">
+                            {petMap.get(b.pet_id) ?? "Mascota"} de{" "}
+                            {ownerMap.get(b.owner_id) ?? "dueño"}
+                          </p>
+                          {destacada && (
+                            <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-white">
+                              ✓ Confirmada y pagada
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-sm text-foreground/60">
+                          {b.fecha_inicio} → {b.fecha_fin} · ${b.monto}
+                        </p>
+                        {retenido && aCobrar !== null && (
+                          <p className="mt-1 text-sm font-semibold text-accent">
+                            ${aCobrar} retenidos hasta el{" "}
+                            {payment?.fecha_liberacion
+                              ? formatFecha(payment.fecha_liberacion)
+                              : "—"}
+                          </p>
+                        )}
+                      </div>
+                      <span
+                        className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-medium ${
+                          ESTADO_COLOR[b.estado] ?? "bg-foreground/10"
+                        }`}
+                      >
+                        {ESTADO_LABEL[b.estado] ?? b.estado}
+                      </span>
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-sm text-foreground/60">
+              Todavía no recibiste solicitudes de reserva.
+            </p>
+          )}
+        </div>
       </section>
     </div>
   );
