@@ -1,5 +1,6 @@
 import { BookingWidget } from "@/components/booking/BookingWidget";
 import { TierBadge } from "@/components/booking/TierBadge";
+import { CaregiverResultsMap } from "@/components/search/CaregiverResultsMap";
 import { createClient } from "@/lib/supabase/server";
 
 type PageProps = {
@@ -129,6 +130,31 @@ export default async function CaregiverProfilePage({
         <p className="mt-6 text-sm leading-relaxed text-foreground/80">
           {caregiver.bio}
         </p>
+      )}
+
+      {caregiver.zona_lat != null && caregiver.zona_lng != null && (
+        <div className="mt-6">
+          <p className="text-sm font-medium">Zona aproximada</p>
+          <div className="mt-2">
+            <CaregiverResultsMap
+              results={[
+                {
+                  id: caregiver.id,
+                  nombre: caregiver.nombre,
+                  zona_lat: caregiver.zona_lat,
+                  zona_lng: caregiver.zona_lng,
+                  tarifa_base: caregiver.tarifa_base,
+                  verificado: caregiver.verificado,
+                  perfilHref: `/cuidadores/${caregiver.id}`,
+                },
+              ]}
+            />
+          </div>
+          <p className="mt-2 text-xs text-foreground/50">
+            No es la dirección exacta — eso se comparte recién después de
+            confirmar una reserva.
+          </p>
+        </div>
       )}
 
       <div className="mt-8 rounded-2xl border border-foreground/10 p-6">

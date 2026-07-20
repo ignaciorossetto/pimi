@@ -37,7 +37,7 @@ Pilares:
 
 ### Dentro del alcance (v1)
 - Registro y perfil de dueño y de cuidador (puede ser la misma persona con ambos roles).
-- Verificación de identidad básica (DNI + selfie, o al menos email/teléfono verificado en v1, con roadmap a verificación de identidad completa).
+- Verificación de identidad de cuidadores: DNI (frente y dorso) + selfie + comprobante de domicilio, con revisión manual de un admin en v1 (roadmap a un proveedor de KYC/reconocimiento facial real — ver sección 8.3).
 - Publicación de mascota (especie, raza, tamaño, edad, temperamento, necesidades médicas).
 - Búsqueda de cuidadores por zona y fechas.
 - Perfil de cuidador: fotos, zona, tarifa, tipo de servicio (hospedaje en su casa, visitas a domicilio, paseos), disponibilidad.
@@ -151,6 +151,39 @@ modelo de IA real todavía):
   editarlo o enviarlo igual.
 - El panel de admin lista los mensajes marcados para que el equipo pueda
   revisar manualmente y actuar (advertencia, suspensión, etc.).
+
+### 8.3 Verificación de identidad de cuidadores (implementado)
+
+Flujo en tres pasos, en este orden:
+
+1. **Cuenta**: registro con email/password (confirmación de email vía
+   Supabase Auth).
+2. **Perfil**: el cuidador completa zona, tarifa, tipo de servicio, foto —
+   ya puede loguearse y armar todo esto sin estar verificado.
+3. **Verificación**: DNI (frente y dorso), selfie sosteniendo el DNI,
+   comprobante de domicilio (factura de servicios), y datos estructurados
+   del domicilio (calle, barrio, tipo de vivienda, si tiene patio).
+
+**Gating**: mientras la verificación no está aprobada, el cuidador puede
+usar la app con normalidad (armar perfil, etc.) pero **no aparece en
+búsquedas ni puede recibir reservas**. Se implementó filtrando la vista
+pública de cuidadores (`caregiver_public_profiles`) a `verificado = true`,
+más una policy en `bookings` que exige lo mismo del lado de la base de
+datos (no solo ocultarlo en la interfaz).
+
+**Revisión manual, no reconocimiento facial automático**: un admin
+compara a ojo el DNI contra la selfie desde el panel de administración.
+No hay integración con un proveedor real de KYC/biometría (Didit, Metamap)
+— eso requiere dar de alta una cuenta con un proveedor externo. El código
+está armado para que ese reemplazo sea acotado (un solo punto de
+decisión) cuando se quiera invertir en eso.
+
+**Seguridad de los documentos**: a diferencia de las fotos de mascotas o
+de perfil de cuidador (públicas), el DNI, la selfie y el comprobante de
+domicilio viven en un bucket de Storage **privado**, accesible solo por
+URLs firmadas de corta duración — nunca quedan en una URL pública fija.
+Un mismo número de DNI no puede quedar aprobado en dos cuentas distintas
+al mismo tiempo (constraint a nivel de base de datos).
 
 Esto es un placeholder razonable para v1. El upgrade natural a futuro es
 reemplazar la heurística por un modelo de lenguaje real que entienda

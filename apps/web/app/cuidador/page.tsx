@@ -1,4 +1,5 @@
 import { CaregiverProfileCard } from "@/components/dashboard/CaregiverProfileCard";
+import { DniVerificationForm } from "@/components/dashboard/DniVerificationForm";
 import { TierBadge } from "@/components/booking/TierBadge";
 import { UnreadMessagesBanner } from "@/components/dashboard/UnreadMessagesBanner";
 import { ESTADO_COLOR, ESTADO_LABEL } from "@/lib/bookings/labels";
@@ -7,12 +8,6 @@ import { getUnreadSummary } from "@/lib/messages/unread";
 import { proximoTier } from "@/lib/payments/tiers";
 import { requireUser } from "@/lib/auth/require-user";
 import { createClient } from "@/lib/supabase/server";
-
-const VERIFICACION_LABEL: Record<string, string> = {
-  pendiente: "Verificación pendiente",
-  aprobado: "Identidad verificada",
-  rechazado: "Verificación rechazada",
-};
 
 function formatFecha(iso: string) {
   return new Date(iso).toLocaleDateString("es-AR", {
@@ -31,13 +26,13 @@ export default async function CuidadorHomePage() {
       supabase
         .from("caregiver_profiles")
         .select(
-          "zona, bio, tarifa_base, tipos_de_servicio, verificado, foto, tier, comision_pct, reviews_count, rating_promedio",
+          "zona, bio, tarifa_base, tipos_de_servicio, verificado, foto, tier, comision_pct, reviews_count, rating_promedio, domicilio_calle, domicilio_numero, domicilio_piso_depto, domicilio_barrio, domicilio_ciudad, tipo_vivienda, tiene_patio, domicilio_lat, domicilio_lng",
         )
         .eq("user_id", user.id)
         .maybeSingle(),
       supabase
         .from("identity_verifications")
-        .select("estado")
+        .select("estado, notas_admin")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -48,10 +43,6 @@ export default async function CuidadorHomePage() {
         .eq("caregiver_id", user.id)
         .order("created_at", { ascending: false }),
     ]);
-
-  const estadoLabel = verification
-    ? (VERIFICACION_LABEL[verification.estado] ?? verification.estado)
-    : "Todavía no iniciaste la verificación";
 
   const bookingIds = (bookings ?? []).map((b) => b.id);
   const ownerIds = [...new Set((bookings ?? []).map((b) => b.owner_id))];
@@ -112,12 +103,42 @@ export default async function CuidadorHomePage() {
       <h1 className="text-2xl font-bold">Hola, {getDisplayName(user)}</h1>
       <p className="mt-1 text-foreground/60">Este es tu panel como cuidador.</p>
 
-      <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-accent/10 px-4 py-1.5 text-sm font-medium text-accent">
-        {estadoLabel}
-      </div>
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold">Verificación de identidad</h2>
+        <p className="mt-1 text-xs text-foreground/50">
+          Mientras no estés verificado no aparecés en las búsquedas de los
+          dueños ni podés recibir reservas — tu perfil sí queda armado, así
+          que podés dejarlo listo desde ya.
+        </p>
+
+        {verification?.estado === "aprobado" ? (
+          <div className="mt-3 rounded-2xl border border-accent/30 bg-accent/5 p-5">
+            <p className="font-semibold text-accent">✓ Identidad verificada</p>
+            <p className="mt-1 text-sm text-foreground/70">
+              Ya aparecés en las búsquedas y podés recibir reservas.
+            </p>
+          </div>
+        ) : verification?.estado === "pendiente" ? (
+          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+            <p className="font-semibold text-amber-700">En revisión</p>
+            <p className="mt-1 text-sm text-foreground/70">
+              Recibimos tu DNI y domicilio, un admin los está revisando.
+              Esto puede tardar un par de días.
+            </p>
+          </div>
+        ) : (
+          <DniVerificationForm
+            rechazoAnterior={
+              verification?.estado === "rechazado"
+                ? (verification.notas_admin ?? "No cumple con lo requerido, volvé a intentar.")
+                : null
+            }
+          />
+        )}
+      </section>
 
       {caregiverProfile && (
-        <section className="mt-8">
+        <section className="mt-10">
           <h2 className="text-lg font-semibold">Tu nivel</h2>
           <div className="mt-3 rounded-2xl border border-foreground/10 p-5">
             <div className="flex flex-wrap items-center gap-2">
@@ -147,7 +168,7 @@ export default async function CuidadorHomePage() {
         </section>
       )}
 
-      <section className="mt-8">
+      <section className="mt-10">
         <h2 className="text-lg font-semibold">Tu perfil de cuidador</h2>
         <CaregiverProfileCard profile={caregiverProfile} />
       </section>

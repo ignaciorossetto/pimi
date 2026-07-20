@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { BookingActions } from "@/components/booking/BookingActions";
 import { CheckinForm } from "@/components/booking/CheckinForm";
+import { CheckinSalidaGate } from "@/components/booking/CheckinSalidaGate";
 import { CheckinTimeline } from "@/components/booking/CheckinTimeline";
 import { ChatThread } from "@/components/booking/ChatThread";
 import { PaymentPanel } from "@/components/booking/PaymentPanel";
@@ -85,6 +86,15 @@ export default async function BookingDetailPage({ params }: PageProps) {
   const simulationMode = Boolean(
     (simulacionSetting?.value as { enabled?: boolean } | null)?.enabled,
   );
+
+  // Fecha de hoy en Córdoba (no UTC del server) en formato YYYY-MM-DD, igual
+  // que fecha_fin (columna "date" en la DB) — comparables como string porque
+  // ambas son ISO. Esto es lo que evita que la salida se pueda marcar el
+  // mismo día que la llegada.
+  const hoyCordoba = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Cordoba",
+  }).format(new Date());
+  const puedeMarcarSalidaHoy = hoyCordoba >= booking.fecha_fin;
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
@@ -206,7 +216,11 @@ export default async function BookingDetailPage({ params }: PageProps) {
         {isCaregiver && booking.estado === "en_curso" && (
           <>
             <CheckinForm bookingId={booking.id} tipo="diario" />
-            <CheckinForm bookingId={booking.id} tipo="salida" />
+            <CheckinSalidaGate
+              bookingId={booking.id}
+              fechaFin={booking.fecha_fin}
+              puedeMarcarHoy={puedeMarcarSalidaHoy}
+            />
           </>
         )}
 

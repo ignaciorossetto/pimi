@@ -128,6 +128,51 @@ recordarle a nadie algo que ni siquiera se pagó).
   la API key) y cargar `RESEND_API_KEY` / `CRON_SECRET` en las env vars
   del proyecto de Vercel.
 
+### 4.3 Verificación de identidad de cuidadores (implementado)
+
+Primera versión real (no el placeholder de la tabla `identity_verifications`
+del modelo de datos original). Decisiones concretas:
+
+- **Qué se pide**: DNI frente, DNI dorso, selfie sosteniendo el DNI,
+  comprobante de domicilio (factura de servicios), más datos estructurados
+  del domicilio (calle, número, piso/depto, barrio, ciudad, tipo de
+  vivienda, si tiene patio) en `caregiver_profiles`.
+- **v1 es revisión manual, no KYC automático**: un admin compara a ojo el
+  DNI contra la selfie desde `/admin`. No se integró un proveedor real de
+  biometría/KYC (Didit, Metamap, etc.) — la tabla `identity_verifications`
+  ya tiene los campos (`estado`, `revisado_por`, `reviewed_at`,
+  `notas_admin`) para que ese reemplazo sea un solo punto de decisión
+  (la función/route que hoy escribe el admin) cuando se quiera automatizar.
+- **Storage privado para documentos sensibles**: a diferencia de los
+  buckets `mascotas`/`cuidadores`/`checkins` (públicos), el DNI, la selfie
+  y el comprobante de domicilio van a un bucket nuevo `verificaciones`
+  (`public = false`). No hay URL pública fija: el admin panel genera URLs
+  firmadas de corta duración (`createSignedUrl`, 10 minutos) con el cliente
+  admin/service-role, que es el único que puede leer el bucket sin ser el
+  dueño del archivo.
+- **El cliente no puede auto-aprobarse**: la policy de insert en
+  `identity_verifications` solo valida `auth.uid() = user_id`, lo cual
+  dejaría que alguien insertara una fila directamente con
+  `estado = 'aprobado'`. Se cerró con un trigger `BEFORE INSERT` que
+  fuerza `estado = 'pendiente'`, `revisado_por = null`,
+  `reviewed_at = null` sin importar qué mande el cliente.
+- **Un DNI no puede estar aprobado en dos cuentas**: índice único parcial
+  sobre `dni_numero` filtrado a `estado = 'aprobado'` — permite reintentos
+  (rechazado → reenviar) pero bloquea que dos usuarios queden aprobados
+  con el mismo número al mismo tiempo.
+- **Gating de `verificado` a nivel de plataforma, no solo de UI**: la vista
+  `caregiver_public_profiles` (usada tanto por la búsqueda como por el
+  perfil público) filtra `where verificado = true`, y la policy de insert
+  de `bookings` exige lo mismo del lado de la base de datos — un cuidador
+  sin verificar puede usar su dashboard con normalidad, pero no aparece en
+  ningún listado ni puede recibir una reserva ni por la UI ni por una
+  llamada directa a la API.
+- **Columnas sensibles protegidas de auto-escalamiento**: ya existía el
+  patrón (de tiers/comisión) de `revoke update ... from authenticated` +
+  `grant update (columnas seguras)` para que un usuario no pueda escribir
+  `verificado` o `comision_pct` en su propia fila vía el SDK del cliente;
+  se mantiene igual para `caregiver_profiles`.
+
 ## 5. Roadmap de implementación por fases
 
 **Fase 0 — Fundaciones**

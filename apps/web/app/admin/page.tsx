@@ -2,6 +2,9 @@ import { requireUser } from "@/lib/auth/require-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LiberarPagoButton } from "@/components/admin/LiberarPagoButton";
 import { SimulacionPagosToggle } from "@/components/admin/SimulacionPagosToggle";
+import { VerificationReviewActions } from "@/components/admin/VerificationReviewActions";
+
+const SIGNED_URL_EXPIRES = 60 * 10; // 10 minutos, alcanza para revisar
 
 export default async function AdminHomePage() {
   await requireUser("/admin"); // el layout ya validó rol admin
@@ -35,7 +38,14 @@ export default async function AdminHomePage() {
       .eq("tipo_evento", "mensaje_flageado"),
     supabase
       .from("identity_verifications")
-      .select("tipo_documento, created_at, profiles(email)")
+      .select(
+        // "identity_verifications" tiene DOS columnas que apuntan a
+        // "profiles" (user_id y revisado_por), así que hay que decirle a
+        // PostgREST cuál usar acá (profiles!user_id) — con "profiles(email)"
+        // a secas la consulta es ambigua, tira error y esta lista queda
+        // vacía aunque haya verificaciones pendientes.
+        "id, dni_numero, dni_frente, dni_dorso, selfie, comprobante_domicilio, created_at, profiles!user_id(email)",
+      )
       .eq("estado", "pendiente")
       .order("created_at", { ascending: true })
       .limit(10),
@@ -104,6 +114,26 @@ export default async function AdminHomePage() {
   const bookingMap = new Map((bookingsInfo ?? []).map((b) => [b.id, b]));
   const caregiverMap = new Map((caregivers ?? []).map((c) => [c.id, c.nombre || c.email]));
   const petMap = new Map((pets ?? []).map((p) => [p.id, p.nombre]));
+
+  async function signedUrl(path: string | null): Promise<string | null> {
+    if (!path) return null;
+    const { data } = await supabase.storage
+      .from("verificaciones")
+      .createSignedUrl(path, SIGNED_URL_EXPIRES);
+    return data?.signedUrl ?? null;
+  }
+
+  const pendingWithUrls = await Promise.all(
+    (pendingList ?? []).map(async (row) => {
+      const [dniFrenteUrl, dniDorsoUrl, selfieUrl, comprobanteUrl] = await Promise.all([
+        signedUrl(row.dni_frente),
+        signedUrl(row.dni_dorso),
+        signedUrl(row.selfie),
+        signedUrl(row.comprobante_domicilio),
+      ]);
+      return { ...row, dniFrenteUrl, dniDorsoUrl, selfieUrl, comprobanteUrl };
+    }),
+  );
 
   return (
     <div>
@@ -198,37 +228,84 @@ export default async function AdminHomePage() {
 
       <div className="mt-10">
         <h2 className="text-lg font-semibold">Verificaciones pendientes</h2>
+        <p className="mt-1 text-xs text-background/50">
+          Revisión manual de DNI, selfie y comprobante de domicilio. Los
+          links a los documentos valen 10 minutos (URLs firmadas del bucket
+          privado "verificaciones") — si vencen, recargá la página.
+        </p>
         <div className="mt-3 overflow-hidden rounded-2xl border border-background/15">
-          {pendingList && pendingList.length > 0 ? (
+          {pendingWithUrls.length > 0 ? (
             <table className="w-full text-left text-sm">
               <thead className="bg-background/5 text-background/60">
                 <tr>
                   <th className="px-4 py-2">Email</th>
-                  <th className="px-4 py-2">Documento</th>
+                  <th className="px-4 py-2">DNI</th>
+                  <th className="px-4 py-2">Documentos</th>
                   <th className="px-4 py-2">Solicitado</th>
+                  <th className="px-4 py-2"></th>
                 </tr>
               </thead>
               <tbody>
-                {pendingList.map(
-                  (
-                    row: {
-                      tipo_documento: string;
-                      created_at: string;
-                      profiles: { email: string }[] | null;
-                    },
-                    i: number,
-                  ) => (
-                    <tr key={i} className="border-t border-background/10">
+                {pendingWithUrls.map((row) => {
+                  const email =
+                    (row.profiles as { email: string }[] | null)?.[0]?.email ?? "—";
+                  return (
+                    <tr key={row.id} className="border-t border-background/10 align-top">
+                      <td className="px-4 py-2">{email}</td>
+                      <td className="px-4 py-2">{row.dni_numero ?? "—"}</td>
                       <td className="px-4 py-2">
-                        {row.profiles?.[0]?.email ?? "—"}
+                        <div className="flex flex-col gap-1">
+                          {row.dniFrenteUrl && (
+                            <a
+                              href={row.dniFrenteUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-brand hover:underline"
+                            >
+                              DNI frente
+                            </a>
+                          )}
+                          {row.dniDorsoUrl && (
+                            <a
+                              href={row.dniDorsoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-brand hover:underline"
+                            >
+                              DNI dorso
+                            </a>
+                          )}
+                          {row.selfieUrl && (
+                            <a
+                              href={row.selfieUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-brand hover:underline"
+                            >
+                              Selfie
+                            </a>
+                          )}
+                          {row.comprobanteUrl && (
+                            <a
+                              href={row.comprobanteUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-brand hover:underline"
+                            >
+                              Comprobante de domicilio
+                            </a>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-4 py-2">{row.tipo_documento}</td>
                       <td className="px-4 py-2">
                         {new Date(row.created_at).toLocaleDateString("es-AR")}
                       </td>
+                      <td className="px-4 py-2">
+                        <VerificationReviewActions verificationId={row.id} />
+                      </td>
                     </tr>
-                  ),
-                )}
+                  );
+                })}
               </tbody>
             </table>
           ) : (
