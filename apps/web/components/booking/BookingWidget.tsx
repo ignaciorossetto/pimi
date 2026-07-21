@@ -93,7 +93,8 @@ export function BookingWidget({
 
     if (insertError) {
       setError(
-        insertError.message.includes("ya tiene un cuidado confirmado")
+        insertError.message.includes("ya tiene un cuidado confirmado") ||
+          insertError.message.includes("no acepta mascotas")
           ? insertError.message
           : "No pudimos crear la reserva. Probá de nuevo.",
       );

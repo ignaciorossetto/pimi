@@ -30,7 +30,7 @@ export default async function CuidadorHomePage() {
     supabase
       .from("caregiver_profiles")
       .select(
-        "zona, bio, tarifa_base, tipos_de_servicio, verificado, foto, tier, comision_pct, reviews_count, rating_promedio, domicilio_calle, domicilio_numero, domicilio_piso_depto, domicilio_barrio, domicilio_ciudad, tipo_vivienda, tiene_patio, domicilio_lat, domicilio_lng, tiene_mascotas_propias",
+        "zona, bio, tarifa_base, tipos_de_servicio, verificado, foto, tier, comision_pct, reviews_count, rating_promedio, domicilio_calle, domicilio_numero, domicilio_piso_depto, domicilio_barrio, domicilio_ciudad, tipo_vivienda, tiene_patio, domicilio_lat, domicilio_lng, tiene_mascotas_propias, tamanos_aceptados, especies_aceptadas, etapas_aceptadas",
       )
       .eq("user_id", user.id)
       .maybeSingle(),

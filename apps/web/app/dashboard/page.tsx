@@ -58,7 +58,10 @@ export default async function DashboardHomePage() {
   const caregiverMap = new Map((caregivers ?? []).map((c) => [c.id, c.nombre]));
 
   const reservasActivas = (bookings ?? []).filter(
-    (b) => b.estado === "solicitado" || b.estado === "aceptado",
+    (b) =>
+      b.estado === "solicitado" ||
+      b.estado === "aceptado" ||
+      b.estado === "en_curso",
   );
 
   return (
@@ -109,6 +112,24 @@ export default async function DashboardHomePage() {
               {reservasActivas.map((b) => {
                 const cuidadorNombre = caregiverMap.get(b.caregiver_id) ?? "el cuidador";
                 const mascotaNombre = petMap.get(b.pet_id) ?? "tu mascota";
+
+                if (b.estado === "en_curso") {
+                  return (
+                    <a
+                      key={b.id}
+                      href={`/reservas/${b.id}`}
+                      className="block rounded-2xl border-2 border-accent/40 bg-accent/5 p-6 transition hover:border-accent/60"
+                    >
+                      <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+                        ● Cuidado en curso
+                      </p>
+                      <p className="mt-2 text-base text-foreground/80">
+                        {cuidadorNombre} está cuidando a {mascotaNombre} en
+                        este momento.
+                      </p>
+                    </a>
+                  );
+                }
 
                 if (b.estado === "aceptado") {
                   const dias = diasParaEmpezar(b.fecha_inicio);

@@ -27,6 +27,27 @@ type CaregiverProfile = {
   domicilio_lat?: number | null;
   domicilio_lng?: number | null;
   tiene_mascotas_propias?: boolean | null;
+  tamanos_aceptados?: string[] | null;
+  especies_aceptadas?: string[] | null;
+  etapas_aceptadas?: string[] | null;
+};
+
+const TAMANO_LABEL: Record<string, string> = {
+  chico: "chico",
+  mediano: "mediano",
+  grande: "grande",
+};
+
+const ESPECIE_LABEL: Record<string, string> = {
+  perro: "perros",
+  gato: "gatos",
+  otro: "otros",
+};
+
+const ETAPA_LABEL: Record<string, string> = {
+  cachorro: "cachorros",
+  adulto: "adultos",
+  senior: "senior",
 };
 
 export function CaregiverProfileCard({
@@ -100,6 +121,18 @@ export function CaregiverProfileCard({
           <li>Zona: {profile.zona}</li>
           <li>Tarifa: ${profile.tarifa_base} / día</li>
           <li>Servicios: {profile.tipos_de_servicio?.join(", ") || "—"}</li>
+          {(profile.especies_aceptadas || profile.tamanos_aceptados || profile.etapas_aceptadas) && (
+            <li>
+              Acepta:{" "}
+              {[
+                profile.especies_aceptadas?.map((e) => ESPECIE_LABEL[e] ?? e).join(", "),
+                profile.tamanos_aceptados?.map((t) => TAMANO_LABEL[t] ?? t).join(", "),
+                profile.etapas_aceptadas?.map((et) => ETAPA_LABEL[et] ?? et).join(", "),
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </li>
+          )}
           {profile.tiene_mascotas_propias != null && (
             <li>
               {profile.tiene_mascotas_propias

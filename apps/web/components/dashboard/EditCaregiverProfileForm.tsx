@@ -17,6 +17,24 @@ const TIPOS_SERVICIO = [
   { value: "paseo", label: "Paseos" },
 ];
 
+const TAMANOS = [
+  { value: "chico", label: "Chico" },
+  { value: "mediano", label: "Mediano" },
+  { value: "grande", label: "Grande" },
+];
+
+const ESPECIES = [
+  { value: "perro", label: "Perros" },
+  { value: "gato", label: "Gatos" },
+  { value: "otro", label: "Otros" },
+];
+
+const ETAPAS = [
+  { value: "cachorro", label: "Cachorros (menos de 1 año)" },
+  { value: "adulto", label: "Adultos (1 a 7 años)" },
+  { value: "senior", label: "Senior (8 años o más)" },
+];
+
 type CaregiverProfile = {
   zona: string;
   bio: string | null;
@@ -34,6 +52,9 @@ type CaregiverProfile = {
   domicilio_lat?: number | null;
   domicilio_lng?: number | null;
   tiene_mascotas_propias?: boolean | null;
+  tamanos_aceptados?: string[] | null;
+  especies_aceptadas?: string[] | null;
+  etapas_aceptadas?: string[] | null;
 };
 
 const TIPO_VIVIENDA_LABEL: Record<string, string> = {
@@ -148,6 +169,21 @@ export function EditCaregiverProfileForm({
     }
 
     const tiposDeServicio = formData.getAll("tipos_de_servicio") as string[];
+    const tamanosAceptados = formData.getAll("tamanos_aceptados") as string[];
+    const especiesAceptadas = formData.getAll("especies_aceptadas") as string[];
+    const etapasAceptadas = formData.getAll("etapas_aceptadas") as string[];
+
+    if (
+      tamanosAceptados.length === 0 ||
+      especiesAceptadas.length === 0 ||
+      etapasAceptadas.length === 0
+    ) {
+      setError(
+        "Elegí al menos un tamaño, una especie y una edad que aceptes cuidar.",
+      );
+      setLoading(false);
+      return;
+    }
 
     // La "zona" que se muestra en la búsqueda/perfil ya no se pide como
     // campo aparte — sale sola del domicilio (barrio + ciudad) para no
@@ -173,6 +209,9 @@ export function EditCaregiverProfileForm({
         tiene_mascotas_propias: formData.get("tiene_mascotas_propias") === "on",
         domicilio_lat: lat,
         domicilio_lng: lng,
+        tamanos_aceptados: tamanosAceptados,
+        especies_aceptadas: especiesAceptadas,
+        etapas_aceptadas: etapasAceptadas,
       })
       .eq("user_id", user.id);
 
@@ -267,6 +306,95 @@ export function EditCaregiverProfileForm({
               {tipo.label}
             </label>
           ))}
+        </div>
+      </div>
+
+      <div>
+        <span className="text-sm font-medium">Mascotas que aceptás cuidar</span>
+        <p className="mt-1 text-xs text-foreground/50">
+          Los dueños con mascotas fuera de esto ni siquiera te van a ver en
+          la búsqueda — así no perdés tiempo rechazando solicitudes que no
+          te sirven.
+        </p>
+
+        <div className="mt-3 grid gap-4 sm:grid-cols-3">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
+              Tamaño
+            </span>
+            <div className="mt-2 flex flex-col gap-2">
+              {TAMANOS.map((t) => (
+                <label
+                  key={t.value}
+                  className="flex items-center gap-2 text-sm text-foreground/80"
+                >
+                  <input
+                    type="checkbox"
+                    name="tamanos_aceptados"
+                    value={t.value}
+                    defaultChecked={
+                      profile.tamanos_aceptados == null ||
+                      profile.tamanos_aceptados.includes(t.value)
+                    }
+                    className="h-4 w-4 rounded border-foreground/30 text-brand focus:ring-brand"
+                  />
+                  {t.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
+              Especie
+            </span>
+            <div className="mt-2 flex flex-col gap-2">
+              {ESPECIES.map((e) => (
+                <label
+                  key={e.value}
+                  className="flex items-center gap-2 text-sm text-foreground/80"
+                >
+                  <input
+                    type="checkbox"
+                    name="especies_aceptadas"
+                    value={e.value}
+                    defaultChecked={
+                      profile.especies_aceptadas == null ||
+                      profile.especies_aceptadas.includes(e.value)
+                    }
+                    className="h-4 w-4 rounded border-foreground/30 text-brand focus:ring-brand"
+                  />
+                  {e.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
+              Edad
+            </span>
+            <div className="mt-2 flex flex-col gap-2">
+              {ETAPAS.map((et) => (
+                <label
+                  key={et.value}
+                  className="flex items-center gap-2 text-sm text-foreground/80"
+                >
+                  <input
+                    type="checkbox"
+                    name="etapas_aceptadas"
+                    value={et.value}
+                    defaultChecked={
+                      profile.etapas_aceptadas == null ||
+                      profile.etapas_aceptadas.includes(et.value)
+                    }
+                    className="h-4 w-4 rounded border-foreground/30 text-brand focus:ring-brand"
+                  />
+                  {et.label}
+                </label>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 

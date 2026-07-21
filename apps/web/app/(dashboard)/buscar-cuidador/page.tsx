@@ -98,6 +98,24 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
     }
   }
 
+  // Datos de la mascota elegida, para filtrar en la búsqueda a los
+  // cuidadores que no aceptan su especie/tamaño/edad (migración 0027) —
+  // así no se le muestran al dueño cuidadores que después le van a
+  // rechazar la solicitud.
+  let mascotaSeleccionada: {
+    especie: string;
+    tamano: string | null;
+    edad: number | null;
+  } | null = null;
+  if (hasSearched && params.mascota) {
+    const { data } = await supabase
+      .from("pets")
+      .select("especie, tamano, edad")
+      .eq("id", params.mascota)
+      .maybeSingle();
+    mascotaSeleccionada = data;
+  }
+
   if (hasSearched && !reservaConfirmada) {
     // Antes esto era un simple .ilike sobre "zona" contra la vista
     // pública. Ahora es una función (RPC) porque necesita comparar contra
@@ -109,6 +127,9 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
       p_radio_km: radio && !Number.isNaN(radio) ? radio : null,
       p_zona: params.zona || null,
       p_servicio: params.servicio || null,
+      p_especie: mascotaSeleccionada?.especie ?? null,
+      p_tamano: mascotaSeleccionada?.tamano ?? null,
+      p_edad: mascotaSeleccionada?.edad ?? null,
     });
 
     if (error) {
@@ -364,7 +385,9 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
             !searchError && (
               <p className="mt-4 text-sm text-foreground/60">
                 No encontramos cuidadores para esa búsqueda todavía. Probá
-                ampliando el radio o sacando el filtro de zona.
+                ampliando el radio, sacando el filtro de zona, o puede ser
+                que los cuidadores cerca tuyo no acepten el tamaño/edad de
+                tu mascota.
               </p>
             )
           )}

@@ -5,13 +5,8 @@ import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { PasswordField } from "@/components/auth/PasswordField";
-
-function safeNext(next: string | null): string | null {
-  if (next && next.startsWith("/") && !next.startsWith("//")) {
-    return next;
-  }
-  return null;
-}
+import { GoogleButton } from "@/components/auth/GoogleButton";
+import { safeNext } from "@/lib/auth/safe-next";
 
 async function resolveDestination(user: User): Promise<string> {
   const role = (user.app_metadata as { role?: string } | null)?.role;
@@ -102,6 +97,14 @@ export function LoginForm({
       >
         {loading ? "Entrando..." : "Entrar"}
       </button>
+
+      <div className="my-1 flex items-center gap-3 text-xs text-foreground/40">
+        <div className="h-px flex-1 bg-foreground/10" />
+        o
+        <div className="h-px flex-1 bg-foreground/10" />
+      </div>
+
+      <GoogleButton isCaregiver={isCaregiver} next={next} />
     </form>
   );
 }

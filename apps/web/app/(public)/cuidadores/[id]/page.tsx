@@ -13,6 +13,24 @@ const SERVICIO_LABEL: Record<string, string> = {
   paseo: "Paseos",
 };
 
+const TAMANO_LABEL: Record<string, string> = {
+  chico: "Chico",
+  mediano: "Mediano",
+  grande: "Grande",
+};
+
+const ESPECIE_LABEL: Record<string, string> = {
+  perro: "Perros",
+  gato: "Gatos",
+  otro: "Otros",
+};
+
+const ETAPA_LABEL: Record<string, string> = {
+  cachorro: "Cachorros",
+  adulto: "Adultos",
+  senior: "Senior",
+};
+
 export default async function CaregiverProfilePage({
   params,
   searchParams,
@@ -133,6 +151,40 @@ export default async function CaregiverProfilePage({
                 : "Sin mascotas propias"}
             </span>
           )}
+        </div>
+      )}
+
+      {(caregiver.especies_aceptadas?.length > 0 ||
+        caregiver.tamanos_aceptados?.length > 0 ||
+        caregiver.etapas_aceptadas?.length > 0) && (
+        <div className="mt-4">
+          <p className="text-sm font-medium">Acepta cuidar</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {caregiver.especies_aceptadas?.map((e: string) => (
+              <span
+                key={`especie-${e}`}
+                className="rounded-full bg-brand/10 px-3 py-1 text-xs font-medium text-brand"
+              >
+                {ESPECIE_LABEL[e] ?? e}
+              </span>
+            ))}
+            {caregiver.tamanos_aceptados?.map((t: string) => (
+              <span
+                key={`tamano-${t}`}
+                className="rounded-full bg-foreground/5 px-3 py-1 text-xs font-medium"
+              >
+                {TAMANO_LABEL[t] ?? t}
+              </span>
+            ))}
+            {caregiver.etapas_aceptadas?.map((et: string) => (
+              <span
+                key={`etapa-${et}`}
+                className="rounded-full bg-foreground/5 px-3 py-1 text-xs font-medium"
+              >
+                {ETAPA_LABEL[et] ?? et}
+              </span>
+            ))}
+          </div>
         </div>
       )}
 

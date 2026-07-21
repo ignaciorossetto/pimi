@@ -4,6 +4,7 @@ import { LiberarPagoButton } from "@/components/admin/LiberarPagoButton";
 import { SimulacionPagosToggle } from "@/components/admin/SimulacionPagosToggle";
 import { VerificationReviewActions } from "@/components/admin/VerificationReviewActions";
 import { AddressChangeReviewActions } from "@/components/admin/AddressChangeReviewActions";
+import { ResetDevDataButton } from "@/components/admin/ResetDevDataButton";
 
 const SIGNED_URL_EXPIRES = 60 * 10; // 10 minutos, alcanza para revisar
 
@@ -200,8 +201,9 @@ export default async function AdminHomePage() {
 
       <div className="mt-10">
         <h2 className="text-lg font-semibold">Herramientas de desarrollo</h2>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-col gap-3">
           <SimulacionPagosToggle enabled={simulacionActiva} />
+          {process.env.NODE_ENV !== "production" && <ResetDevDataButton />}
         </div>
       </div>
 

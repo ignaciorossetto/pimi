@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { PasswordField } from "@/components/auth/PasswordField";
+import { GoogleButton } from "@/components/auth/GoogleButton";
 
 // "visita_a_domicilio" se sacó de la app: solo quedan paseo y hospedaje en
 // la casa del cuidador (decisión de producto explícita).
@@ -239,6 +240,21 @@ export function RegisterForm({ isCaregiver }: { isCaregiver: boolean }) {
             ? "Crear mi perfil de cuidador"
             : "Crear cuenta"}
       </button>
+
+      <div className="my-1 flex items-center gap-3 text-xs text-foreground/40">
+        <div className="h-px flex-1 bg-foreground/10" />
+        o
+        <div className="h-px flex-1 bg-foreground/10" />
+      </div>
+
+      <GoogleButton
+        isCaregiver={isCaregiver}
+        label={
+          isCaregiver
+            ? "Sumarme como cuidador con Google"
+            : "Crear cuenta con Google"
+        }
+      />
     </form>
   );
 }
