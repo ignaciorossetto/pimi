@@ -97,7 +97,7 @@ export default function ParaCuidadoresPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center md:justify-start">
             <a
               href="/registro?rol=cuidador"
-              className="rounded-lg bg-brand px-6 py-3 font-semibold text-white transition hover:bg-brand-dark"
+              className="rounded-lg bg-accent px-6 py-3 font-semibold text-white transition hover:opacity-90"
             >
               Quiero ser cuidador
             </a>
@@ -127,7 +127,7 @@ export default function ParaCuidadoresPage() {
                 key={title}
                 className="rounded-2xl bg-background p-6 shadow-sm ring-1 ring-foreground/5"
               >
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand/10 text-brand">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent">
                   <Icon className="h-5 w-5" />
                 </span>
                 <h3 className="mt-4 font-semibold">{title}</h3>
@@ -181,7 +181,7 @@ export default function ParaCuidadoresPage() {
             {faqs.map(({ question, answer }) => (
               <details
                 key={question}
-                className="group rounded-xl bg-background p-5 ring-1 ring-foreground/10 open:ring-brand/30"
+                className="group rounded-xl bg-background p-5 ring-1 ring-foreground/10 open:ring-accent/30"
               >
                 <summary className="cursor-pointer list-none font-semibold marker:content-none">
                   {question}
@@ -202,7 +202,7 @@ export default function ParaCuidadoresPage() {
         </p>
         <a
           href="/registro?rol=cuidador"
-          className="mt-6 inline-block rounded-lg bg-brand px-6 py-3 font-semibold text-white transition hover:bg-brand-dark"
+          className="mt-6 inline-block rounded-lg bg-accent px-6 py-3 font-semibold text-white transition hover:opacity-90"
         >
           Quiero ser cuidador
         </a>

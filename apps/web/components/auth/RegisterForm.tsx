@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { PasswordField } from "@/components/auth/PasswordField";
 
 // "visita_a_domicilio" se sacó de la app: solo quedan paseo y hospedaje en
 // la casa del cuidador (decisión de producto explícita).
@@ -14,8 +15,14 @@ const TIPOS_SERVICIO = [
 function Field({
   label,
   id,
+  accent = false,
   ...props
-}: { label: string; id: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+}: {
+  label: string;
+  id: string;
+  /** Usa el foco verde (cuidador) en vez del naranja (dueño) por defecto. */
+  accent?: boolean;
+} & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <div>
       <label className="text-sm font-medium" htmlFor={id}>
@@ -25,7 +32,9 @@ function Field({
         id={id}
         name={id}
         {...props}
-        className="mt-1 w-full rounded-lg border border-foreground/20 px-4 py-2 focus:border-brand focus:outline-none"
+        className={`mt-1 w-full rounded-lg border border-foreground/20 px-4 py-2 focus:outline-none ${
+          accent ? "focus:border-accent" : "focus:border-brand"
+        }`}
       />
     </div>
   );
@@ -118,6 +127,7 @@ export function RegisterForm({ isCaregiver }: { isCaregiver: boolean }) {
           placeholder="Ana Pérez"
           autoComplete="name"
           required
+          accent={isCaregiver}
         />
         <Field
           label="Teléfono"
@@ -125,6 +135,7 @@ export function RegisterForm({ isCaregiver }: { isCaregiver: boolean }) {
           type="tel"
           placeholder="11 5555-5555"
           autoComplete="tel"
+          accent={isCaregiver}
         />
       </div>
       <Field
@@ -134,25 +145,26 @@ export function RegisterForm({ isCaregiver }: { isCaregiver: boolean }) {
         placeholder="vos@email.com"
         autoComplete="email"
         required
+        accent={isCaregiver}
       />
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field
+        <PasswordField
           label="Contraseña"
           id="password"
-          type="password"
           placeholder="••••••••"
           autoComplete="new-password"
           required
           minLength={6}
+          accent={isCaregiver}
         />
-        <Field
+        <PasswordField
           label="Repetir contraseña"
           id="password2"
-          type="password"
           placeholder="••••••••"
           autoComplete="new-password"
           required
           minLength={6}
+          accent={isCaregiver}
         />
       </div>
 
@@ -178,7 +190,7 @@ export function RegisterForm({ isCaregiver }: { isCaregiver: boolean }) {
                     type="checkbox"
                     name="tipos_de_servicio"
                     value={tipo.value}
-                    className="h-4 w-4 rounded border-foreground/30 text-brand focus:ring-brand"
+                    className="h-4 w-4 rounded border-foreground/30 text-accent focus:ring-accent"
                   />
                   {tipo.label}
                 </label>
@@ -195,7 +207,7 @@ export function RegisterForm({ isCaregiver }: { isCaregiver: boolean }) {
               name="bio"
               rows={3}
               placeholder="Experiencia con mascotas, tu casa, disponibilidad..."
-              className="mt-1 w-full rounded-lg border border-foreground/20 px-4 py-2 focus:border-brand focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-foreground/20 px-4 py-2 focus:border-accent focus:outline-none"
             />
           </div>
         </>
@@ -205,7 +217,9 @@ export function RegisterForm({ isCaregiver }: { isCaregiver: boolean }) {
         <input
           type="checkbox"
           required
-          className="mt-0.5 h-4 w-4 rounded border-foreground/30 text-brand focus:ring-brand"
+          className={`mt-0.5 h-4 w-4 rounded border-foreground/30 ${
+            isCaregiver ? "text-accent focus:ring-accent" : "text-brand focus:ring-brand"
+          }`}
         />
         Acepto los Términos y la Política de Privacidad de Pimi.
       </label>
@@ -215,7 +229,9 @@ export function RegisterForm({ isCaregiver }: { isCaregiver: boolean }) {
       <button
         type="submit"
         disabled={loading}
-        className="mt-1 rounded-lg bg-brand px-4 py-2 font-semibold text-white transition hover:bg-brand-dark disabled:opacity-60"
+        className={`mt-1 rounded-lg px-4 py-2 font-semibold text-white transition disabled:opacity-60 ${
+          isCaregiver ? "bg-accent hover:opacity-90" : "bg-brand hover:bg-brand-dark"
+        }`}
       >
         {loading
           ? "Creando cuenta..."

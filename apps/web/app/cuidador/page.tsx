@@ -21,28 +21,41 @@ export default async function CuidadorHomePage() {
   const user = await requireUser("/cuidador");
   const supabase = await createClient();
 
-  const [{ data: caregiverProfile }, { data: verification }, { data: bookings }] =
-    await Promise.all([
-      supabase
-        .from("caregiver_profiles")
-        .select(
-          "zona, bio, tarifa_base, tipos_de_servicio, verificado, foto, tier, comision_pct, reviews_count, rating_promedio, domicilio_calle, domicilio_numero, domicilio_piso_depto, domicilio_barrio, domicilio_ciudad, tipo_vivienda, tiene_patio, domicilio_lat, domicilio_lng",
-        )
-        .eq("user_id", user.id)
-        .maybeSingle(),
-      supabase
-        .from("identity_verifications")
-        .select("estado, notas_admin")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("bookings")
-        .select("id, owner_id, pet_id, fecha_inicio, fecha_fin, estado, monto")
-        .eq("caregiver_id", user.id)
-        .order("created_at", { ascending: false }),
-    ]);
+  const [
+    { data: caregiverProfile },
+    { data: verification },
+    { data: bookings },
+    { data: addressChangeRequest },
+  ] = await Promise.all([
+    supabase
+      .from("caregiver_profiles")
+      .select(
+        "zona, bio, tarifa_base, tipos_de_servicio, verificado, foto, tier, comision_pct, reviews_count, rating_promedio, domicilio_calle, domicilio_numero, domicilio_piso_depto, domicilio_barrio, domicilio_ciudad, tipo_vivienda, tiene_patio, domicilio_lat, domicilio_lng, tiene_mascotas_propias",
+      )
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("identity_verifications")
+      .select("estado, notas_admin")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("bookings")
+      .select(
+        "id, owner_id, pet_id, fecha_inicio, fecha_fin, estado, monto, motivo_cancelacion",
+      )
+      .eq("caregiver_id", user.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("caregiver_address_change_requests")
+      .select("estado, notas_admin, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   const bookingIds = (bookings ?? []).map((b) => b.id);
   const ownerIds = [...new Set((bookings ?? []).map((b) => b.owner_id))];
@@ -170,7 +183,10 @@ export default async function CuidadorHomePage() {
 
       <section className="mt-10">
         <h2 className="text-lg font-semibold">Tu perfil de cuidador</h2>
-        <CaregiverProfileCard profile={caregiverProfile} />
+        <CaregiverProfileCard
+          profile={caregiverProfile}
+          addressChangeRequest={addressChangeRequest}
+        />
       </section>
 
       <section className="mt-10">
@@ -225,6 +241,13 @@ export default async function CuidadorHomePage() {
                               : "—"}
                           </p>
                         )}
+                        {b.estado === "cancelado" &&
+                          b.motivo_cancelacion === "otro_cuidador_elegido" && (
+                            <p className="mt-1 text-sm text-foreground/50">
+                              El dueño avanzó con otro cuidador para estas
+                              fechas — no hiciste nada mal, a veces pasa.
+                            </p>
+                          )}
                       </div>
                       <span
                         className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-medium ${

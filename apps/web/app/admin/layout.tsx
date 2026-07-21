@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { PawIcon } from "@/components/icons";
+import { AdminNav } from "@/components/admin/AdminNav";
 import { UserMenu } from "@/components/dashboard/UserMenu";
 import { getDisplayName } from "@/lib/auth/display-name";
 import { requireUser } from "@/lib/auth/require-user";
@@ -36,6 +37,7 @@ export default async function AdminLayout({
             homeHref="/admin"
           />
         </nav>
+        <AdminNav />
       </header>
       <div className="mx-auto max-w-5xl px-6 py-10">{children}</div>
     </div>

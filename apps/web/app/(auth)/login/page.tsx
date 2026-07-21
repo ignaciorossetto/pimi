@@ -30,13 +30,17 @@ export default async function LoginPage({ searchParams }: PageProps) {
             : "Entrá para gestionar tus mascotas y reservas."}
         </p>
 
-        <LoginForm next={next ?? null} />
+        <LoginForm next={next ?? null} isCaregiver={isCaregiver} />
 
         <p className="mt-6 text-center text-sm text-foreground/60">
           ¿No tenés cuenta?{" "}
           <a
             href={isCaregiver ? "/registro?rol=cuidador" : "/registro"}
-            className="font-semibold text-brand hover:underline"
+            className={
+              isCaregiver
+                ? "font-semibold text-accent hover:underline"
+                : "font-semibold text-brand hover:underline"
+            }
           >
             Creá una
           </a>

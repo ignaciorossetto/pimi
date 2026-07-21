@@ -56,12 +56,49 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
   const hasSearched = Boolean(params.desde && params.hasta);
   let results: CaregiverResult[] = [];
   let searchError: string | null = null;
+  let reservaConfirmada: {
+    id: string;
+    fecha_inicio: string;
+    fecha_fin: string;
+    caregiverNombre: string | null;
+  } | null = null;
 
   const lat = params.lat ? Number(params.lat) : null;
   const lng = params.lng ? Number(params.lng) : null;
   const radio = params.radio ? Number(params.radio) : null;
 
-  if (hasSearched) {
+  // Si la mascota elegida ya tiene una reserva CONFIRMADA que se superpone
+  // con estas fechas, ni siquiera corremos la búsqueda — a pedido
+  // explícito, para no mostrar cuidadores disponibles cuando en realidad
+  // ya no hace falta (y la base ya bloquearía la solicitud de todos
+  // modos, ver migración 0023).
+  if (hasSearched && params.mascota) {
+    const { data: superpuesta } = await supabase
+      .from("bookings")
+      .select("id, caregiver_id, fecha_inicio, fecha_fin")
+      .eq("pet_id", params.mascota)
+      .in("estado", ["aceptado", "en_curso"])
+      .lte("fecha_inicio", params.hasta as string)
+      .gte("fecha_fin", params.desde as string)
+      .maybeSingle();
+
+    if (superpuesta) {
+      const { data: caregiverProfile } = await supabase
+        .from("profiles")
+        .select("nombre")
+        .eq("id", superpuesta.caregiver_id)
+        .maybeSingle();
+
+      reservaConfirmada = {
+        id: superpuesta.id,
+        fecha_inicio: superpuesta.fecha_inicio,
+        fecha_fin: superpuesta.fecha_fin,
+        caregiverNombre: caregiverProfile?.nombre ?? null,
+      };
+    }
+  }
+
+  if (hasSearched && !reservaConfirmada) {
     // Antes esto era un simple .ilike sobre "zona" contra la vista
     // pública. Ahora es una función (RPC) porque necesita comparar contra
     // la coordenada REAL del cuidador para filtrar por radio sin nunca
@@ -210,7 +247,27 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
         </div>
       </form>
 
-      {hasSearched && (
+      {hasSearched && reservaConfirmada && (
+        <div className="mt-8 rounded-2xl border border-accent/30 bg-accent/5 p-5">
+          <p className="font-semibold text-accent">
+            Esta mascota ya tiene un cuidado confirmado para esas fechas
+          </p>
+          <p className="mt-1 text-sm text-foreground/70">
+            {reservaConfirmada.fecha_inicio} → {reservaConfirmada.fecha_fin}
+            {reservaConfirmada.caregiverNombre &&
+              ` con ${reservaConfirmada.caregiverNombre}`}
+            . No hace falta buscar otro cuidador para ese rango.
+          </p>
+          <a
+            href={`/reservas/${reservaConfirmada.id}`}
+            className="mt-3 inline-block rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+          >
+            Ver reserva confirmada
+          </a>
+        </div>
+      )}
+
+      {hasSearched && !reservaConfirmada && (
         <div className="mt-8">
           <h2 className="text-lg font-semibold">
             {searchError

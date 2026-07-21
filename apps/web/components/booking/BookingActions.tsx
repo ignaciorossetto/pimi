@@ -30,7 +30,15 @@ export function BookingActions({ bookingId }: Props) {
       .eq("id", bookingId);
 
     if (updateError) {
-      setError("No pudimos actualizar la reserva. Probá de nuevo.");
+      // El trigger "evitar_reservas_superpuestas" (migración 0020) tira un
+      // mensaje en español ya pensado para mostrar tal cual — el resto de
+      // los errores caen en el mensaje genérico de siempre.
+      setError(
+        updateError.message.includes("ya tiene otra reserva activa") ||
+          updateError.message.includes("ya tiene otra mascota en una reserva activa")
+          ? updateError.message
+          : "No pudimos actualizar la reserva. Probá de nuevo.",
+      );
       setLoading(null);
       return;
     }

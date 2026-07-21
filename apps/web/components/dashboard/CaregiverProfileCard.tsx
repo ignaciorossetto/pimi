@@ -26,12 +26,19 @@ type CaregiverProfile = {
   tiene_patio?: boolean | null;
   domicilio_lat?: number | null;
   domicilio_lng?: number | null;
+  tiene_mascotas_propias?: boolean | null;
 };
 
 export function CaregiverProfileCard({
   profile,
+  addressChangeRequest,
 }: {
   profile: CaregiverProfile | null;
+  addressChangeRequest?: {
+    estado: string;
+    notas_admin: string | null;
+    created_at: string;
+  } | null;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -48,6 +55,7 @@ export function CaregiverProfileCard({
       <div className="mt-2">
         <EditCaregiverProfileForm
           profile={profile}
+          addressChangeRequest={addressChangeRequest}
           onSaved={() => setEditing(false)}
         />
         <button
@@ -92,6 +100,13 @@ export function CaregiverProfileCard({
           <li>Zona: {profile.zona}</li>
           <li>Tarifa: ${profile.tarifa_base} / día</li>
           <li>Servicios: {profile.tipos_de_servicio?.join(", ") || "—"}</li>
+          {profile.tiene_mascotas_propias != null && (
+            <li>
+              {profile.tiene_mascotas_propias
+                ? "Tiene mascotas propias"
+                : "No tiene mascotas propias"}
+            </li>
+          )}
           {domicilioCompleto && (
             <li>
               Domicilio: {domicilioCompleto}

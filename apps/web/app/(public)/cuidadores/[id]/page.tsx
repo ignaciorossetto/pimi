@@ -28,8 +28,12 @@ export default async function CaregiverProfilePage({
         .select("*")
         .eq("id", id)
         .maybeSingle(),
+      // "reviews_publicas" (migración 0025), no la tabla "reviews" directa
+      // — solo muestra una reseña una vez que la otra parte también
+      // calificó (o pasaron 14 días), para no incentivar reseñas de favor
+      // o de represalia.
       supabase
-        .from("reviews")
+        .from("reviews_publicas")
         .select("puntaje, comentario, created_at")
         .eq("destinatario_id", id)
         .order("created_at", { ascending: false })
@@ -122,6 +126,13 @@ export default async function CaregiverProfilePage({
               {SERVICIO_LABEL[tipo] ?? tipo}
             </span>
           ))}
+          {caregiver.tiene_mascotas_propias != null && (
+            <span className="rounded-full bg-foreground/5 px-3 py-1 text-xs font-medium">
+              {caregiver.tiene_mascotas_propias
+                ? "🐾 Tiene mascotas propias"
+                : "Sin mascotas propias"}
+            </span>
+          )}
         </div>
       )}
 

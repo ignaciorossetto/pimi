@@ -112,3 +112,22 @@ export function CoinIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function EyeIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M2.5 12S5.8 5.5 12 5.5 21.5 12 21.5 12 18.2 18.5 12 18.5 2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+export function EyeOffIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M3 3l18 18" />
+      <path d="M10.6 5.7c.4-.1.9-.2 1.4-.2 6.2 0 9.5 6.5 9.5 6.5a15 15 0 0 1-3.4 4.2M6.8 7.2A14.9 14.9 0 0 0 2.5 12S5.8 18.5 12 18.5c1.2 0 2.3-.2 3.3-.6" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+    </svg>
+  );
+}

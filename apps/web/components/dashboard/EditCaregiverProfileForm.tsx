@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { AddressMapPicker } from "@/components/ui/AddressMapPicker";
 import { SuggestedPriceModal } from "@/components/dashboard/SuggestedPriceModal";
+import { AddressChangeRequestForm } from "@/components/dashboard/AddressChangeRequestForm";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const TARIFA_MINIMA = 8000;
@@ -22,6 +23,7 @@ type CaregiverProfile = {
   tarifa_base: number;
   tipos_de_servicio: string[];
   foto: string | null;
+  verificado?: boolean;
   domicilio_calle?: string | null;
   domicilio_numero?: string | null;
   domicilio_piso_depto?: string | null;
@@ -31,13 +33,33 @@ type CaregiverProfile = {
   tiene_patio?: boolean | null;
   domicilio_lat?: number | null;
   domicilio_lng?: number | null;
+  tiene_mascotas_propias?: boolean | null;
+};
+
+const TIPO_VIVIENDA_LABEL: Record<string, string> = {
+  casa: "Casa",
+  departamento: "Departamento",
+  ph: "PH",
+  otro: "Otro",
+};
+
+const ESTADO_SOLICITUD_LABEL: Record<string, string> = {
+  pendiente: "En revisión",
+  aprobado: "Aprobada",
+  rechazado: "Rechazada",
 };
 
 export function EditCaregiverProfileForm({
   profile,
+  addressChangeRequest,
   onSaved,
 }: {
   profile: CaregiverProfile;
+  addressChangeRequest?: {
+    estado: string;
+    notas_admin: string | null;
+    created_at: string;
+  } | null;
   onSaved?: () => void;
 }) {
   const router = useRouter();
@@ -45,6 +67,8 @@ export function EditCaregiverProfileForm({
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<string | null>(profile.foto);
   const [showPrecioSugerido, setShowPrecioSugerido] = useState(false);
+  const [showAddressChangeForm, setShowAddressChangeForm] = useState(false);
+  const domicilioVerificado = Boolean(profile.verificado);
 
   // Controlados solo para poder armar el texto de dirección que usa el
   // mapa — el resto de los campos del form siguen leyéndose por FormData.
@@ -146,6 +170,7 @@ export function EditCaregiverProfileForm({
         domicilio_ciudad: ciudad.trim() || null,
         tipo_vivienda: String(formData.get("tipo_vivienda") ?? "") || null,
         tiene_patio: formData.get("tiene_patio") === "on",
+        tiene_mascotas_propias: formData.get("tiene_mascotas_propias") === "on",
         domicilio_lat: lat,
         domicilio_lng: lng,
       })
@@ -245,6 +270,20 @@ export function EditCaregiverProfileForm({
         </div>
       </div>
 
+      <label className="flex items-center gap-2 text-sm text-foreground/80">
+        <input
+          type="checkbox"
+          name="tiene_mascotas_propias"
+          defaultChecked={Boolean(profile.tiene_mascotas_propias)}
+          className="h-4 w-4 rounded border-foreground/30 text-brand focus:ring-brand"
+        />
+        Tengo mascotas propias
+      </label>
+      <p className="-mt-2 text-xs text-foreground/50">
+        Se lo mostramos a los dueños en tu perfil — es una señal de
+        confianza más si vas a hospedar mascotas en tu casa.
+      </p>
+
       <div>
         <label className="text-sm font-medium" htmlFor="bio">
           Contanos sobre vos
@@ -260,116 +299,180 @@ export function EditCaregiverProfileForm({
 
       <div>
         <p className="text-sm font-semibold">Domicilio</p>
-        <p className="text-xs text-foreground/50">
-          Tu zona pública (la que ven los dueños) se arma sola con el
-          barrio y la ciudad de acá abajo. Si cambiaste de domicilio
-          después de verificarte, avisale a soporte — puede requerir
-          volver a verificar.
-        </p>
-        <div className="mt-2 grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-medium" htmlFor="domicilio_calle">
-              Calle
-            </label>
-            <input
-              id="domicilio_calle"
-              name="domicilio_calle"
-              value={calle}
-              onChange={(event) => setCalle(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium" htmlFor="domicilio_numero">
-              Número
-            </label>
-            <input
-              id="domicilio_numero"
-              name="domicilio_numero"
-              value={numero}
-              onChange={(event) => setNumero(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium" htmlFor="domicilio_piso_depto">
-              Piso / depto (opcional)
-            </label>
-            <input
-              id="domicilio_piso_depto"
-              name="domicilio_piso_depto"
-              defaultValue={profile.domicilio_piso_depto ?? ""}
-              className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium" htmlFor="domicilio_barrio">
-              Barrio
-            </label>
-            <input
-              id="domicilio_barrio"
-              name="domicilio_barrio"
-              value={barrio}
-              onChange={(event) => setBarrio(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium" htmlFor="domicilio_ciudad">
-              Ciudad
-            </label>
-            <input
-              id="domicilio_ciudad"
-              name="domicilio_ciudad"
-              value={ciudad}
-              onChange={(event) => setCiudad(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium" htmlFor="tipo_vivienda">
-              Tipo de vivienda
-            </label>
-            <select
-              id="tipo_vivienda"
-              name="tipo_vivienda"
-              defaultValue={profile.tipo_vivienda ?? ""}
-              className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
-            >
-              <option value="">—</option>
-              <option value="casa">Casa</option>
-              <option value="departamento">Departamento</option>
-              <option value="ph">PH</option>
-              <option value="otro">Otro</option>
-            </select>
-          </div>
-        </div>
-        <label className="mt-3 flex items-center gap-2 text-sm text-foreground/80">
-          <input
-            type="checkbox"
-            name="tiene_patio"
-            defaultChecked={Boolean(profile.tiene_patio)}
-            className="h-4 w-4 rounded border-foreground/30 text-brand focus:ring-brand"
-          />
-          Tiene patio
-        </label>
 
-        <div className="mt-4">
-          <p className="text-sm font-medium">Ubicación en el mapa</p>
-          <p className="text-xs text-foreground/50">
-            A los dueños nunca les mostramos esta dirección exacta — solo un
-            área aproximada, para que puedan encontrarte por zona.
-          </p>
-          <AddressMapPicker
-            direccionTexto={direccionTexto}
-            lat={lat}
-            lng={lng}
-            onChange={(newLat, newLng) => {
-              setLat(newLat);
-              setLng(newLng);
-            }}
-          />
-        </div>
+        {domicilioVerificado ? (
+          <>
+            <p className="text-xs text-foreground/50">
+              Tu domicilio ya está verificado con documentación, así que no
+              se puede editar directamente acá. Si te mudaste, pedí un
+              cambio de domicilio para que un admin revise el comprobante
+              nuevo.
+            </p>
+            <div className="mt-2 rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4 text-sm text-foreground/80">
+              <p>
+                {[
+                  calle && numero ? `${calle} ${numero}` : calle,
+                  profile.domicilio_piso_depto,
+                  barrio,
+                  ciudad,
+                ]
+                  .filter(Boolean)
+                  .join(", ") || "Sin domicilio cargado"}
+              </p>
+              {profile.tipo_vivienda && (
+                <p className="mt-1 text-foreground/60">
+                  {TIPO_VIVIENDA_LABEL[profile.tipo_vivienda] ??
+                    profile.tipo_vivienda}
+                  {profile.tiene_patio ? " · con patio" : ""}
+                </p>
+              )}
+            </div>
+
+            {addressChangeRequest?.estado === "pendiente" ? (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">
+                <p className="font-semibold text-amber-700">
+                  Solicitud de cambio de domicilio en revisión
+                </p>
+                <p className="mt-1 text-foreground/70">
+                  Un admin está revisando el comprobante nuevo. Tu domicilio
+                  actual sigue vigente mientras tanto.
+                </p>
+              </div>
+            ) : (
+              <>
+                {addressChangeRequest?.estado === "rechazado" && (
+                  <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm">
+                    <p className="font-semibold text-red-700">
+                      Tu última solicitud de cambio fue rechazada
+                    </p>
+                    <p className="mt-1 text-foreground/70">
+                      {addressChangeRequest.notas_admin ??
+                        "No cumple con lo requerido, podés volver a intentar."}
+                    </p>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowAddressChangeForm(true)}
+                  className="mt-3 rounded-lg border border-foreground/20 px-3 py-1.5 text-sm font-semibold transition hover:bg-foreground/5"
+                >
+                  Solicitar cambio de domicilio
+                </button>
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-foreground/50">
+              Tu zona pública (la que ven los dueños) se arma sola con el
+              barrio y la ciudad de acá abajo.
+            </p>
+            <div className="mt-2 grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="text-sm font-medium" htmlFor="domicilio_calle">
+                  Calle
+                </label>
+                <input
+                  id="domicilio_calle"
+                  name="domicilio_calle"
+                  value={calle}
+                  onChange={(event) => setCalle(event.target.value)}
+                  className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium" htmlFor="domicilio_numero">
+                  Número
+                </label>
+                <input
+                  id="domicilio_numero"
+                  name="domicilio_numero"
+                  value={numero}
+                  onChange={(event) => setNumero(event.target.value)}
+                  className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium" htmlFor="domicilio_piso_depto">
+                  Piso / depto (opcional)
+                </label>
+                <input
+                  id="domicilio_piso_depto"
+                  name="domicilio_piso_depto"
+                  defaultValue={profile.domicilio_piso_depto ?? ""}
+                  className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium" htmlFor="domicilio_barrio">
+                  Barrio
+                </label>
+                <input
+                  id="domicilio_barrio"
+                  name="domicilio_barrio"
+                  value={barrio}
+                  onChange={(event) => setBarrio(event.target.value)}
+                  className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium" htmlFor="domicilio_ciudad">
+                  Ciudad
+                </label>
+                <input
+                  id="domicilio_ciudad"
+                  name="domicilio_ciudad"
+                  value={ciudad}
+                  onChange={(event) => setCiudad(event.target.value)}
+                  className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium" htmlFor="tipo_vivienda">
+                  Tipo de vivienda
+                </label>
+                <select
+                  id="tipo_vivienda"
+                  name="tipo_vivienda"
+                  defaultValue={profile.tipo_vivienda ?? ""}
+                  className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                >
+                  <option value="">—</option>
+                  <option value="casa">Casa</option>
+                  <option value="departamento">Departamento</option>
+                  <option value="ph">PH</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+            </div>
+            <label className="mt-3 flex items-center gap-2 text-sm text-foreground/80">
+              <input
+                type="checkbox"
+                name="tiene_patio"
+                defaultChecked={Boolean(profile.tiene_patio)}
+                className="h-4 w-4 rounded border-foreground/30 text-brand focus:ring-brand"
+              />
+              Tiene patio
+            </label>
+
+            <div className="mt-4">
+              <p className="text-sm font-medium">Ubicación en el mapa</p>
+              <p className="text-xs text-foreground/50">
+                A los dueños nunca les mostramos esta dirección exacta — solo
+                un área aproximada, para que puedan encontrarte por zona.
+              </p>
+              <AddressMapPicker
+                direccionTexto={direccionTexto}
+                lat={lat}
+                lng={lng}
+                onChange={(newLat, newLng) => {
+                  setLat(newLat);
+                  setLng(newLng);
+                }}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -384,6 +487,12 @@ export function EditCaregiverProfileForm({
 
       {showPrecioSugerido && (
         <SuggestedPriceModal onClose={() => setShowPrecioSugerido(false)} />
+      )}
+
+      {showAddressChangeForm && (
+        <AddressChangeRequestForm
+          onClose={() => setShowAddressChangeForm(false)}
+        />
       )}
     </form>
   );

@@ -1,11 +1,21 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import { PawIcon } from "@/components/icons";
 
 export function Footer() {
+  const pathname = usePathname();
+  const isCuidador = pathname?.startsWith("/para-cuidadores") ?? false;
+
   return (
     <footer className="border-t border-foreground/10 bg-surface">
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-10 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-white">
+          <span
+            className={`flex h-7 w-7 items-center justify-center rounded-full text-white ${
+              isCuidador ? "bg-accent" : "bg-brand"
+            }`}
+          >
             <PawIcon className="h-3.5 w-3.5" />
           </span>
           <span className="font-bold">Pimi</span>
@@ -21,10 +31,16 @@ export function Footer() {
           <a href="#nosotros" className="hover:text-foreground">
             Nosotros
           </a>
-          <a href="/login" className="hover:text-foreground">
+          <a
+            href={isCuidador ? "/login?rol=cuidador" : "/login"}
+            className="hover:text-foreground"
+          >
             Iniciar sesión
           </a>
-          <a href="/registro" className="hover:text-foreground">
+          <a
+            href={isCuidador ? "/registro?rol=cuidador" : "/registro"}
+            className="hover:text-foreground"
+          >
             Crear cuenta
           </a>
         </nav>

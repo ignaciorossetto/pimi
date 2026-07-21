@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { LiberarPagoButton } from "@/components/admin/LiberarPagoButton";
 import { SimulacionPagosToggle } from "@/components/admin/SimulacionPagosToggle";
 import { VerificationReviewActions } from "@/components/admin/VerificationReviewActions";
+import { AddressChangeReviewActions } from "@/components/admin/AddressChangeReviewActions";
 
 const SIGNED_URL_EXPIRES = 60 * 10; // 10 minutos, alcanza para revisar
 
@@ -17,7 +18,12 @@ export default async function AdminHomePage() {
     { count: activeBookings },
     { count: eventsCount },
     { count: flaggedCount },
+    { count: pendingAddressChanges },
+    { count: caregiversCount },
+    { count: ownersCount },
+    { count: petsCount },
     { data: pendingList },
+    { data: pendingAddressList },
     { data: flaggedList },
     { data: pagosRetenidos },
     { data: simulacionSetting },
@@ -37,6 +43,16 @@ export default async function AdminHomePage() {
       .select("*", { count: "exact", head: true })
       .eq("tipo_evento", "mensaje_flageado"),
     supabase
+      .from("caregiver_address_change_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("estado", "pendiente"),
+    supabase.from("caregiver_profiles").select("*", { count: "exact", head: true }),
+    supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .contains("roles", ["dueño"]),
+    supabase.from("pets").select("*", { count: "exact", head: true }),
+    supabase
       .from("identity_verifications")
       .select(
         // "identity_verifications" tiene DOS columnas que apuntan a
@@ -45,6 +61,14 @@ export default async function AdminHomePage() {
         // a secas la consulta es ambigua, tira error y esta lista queda
         // vacía aunque haya verificaciones pendientes.
         "id, dni_numero, dni_frente, dni_dorso, selfie, comprobante_domicilio, created_at, profiles!user_id(email)",
+      )
+      .eq("estado", "pendiente")
+      .order("created_at", { ascending: true })
+      .limit(10),
+    supabase
+      .from("caregiver_address_change_requests")
+      .select(
+        "id, domicilio_calle, domicilio_numero, domicilio_piso_depto, domicilio_barrio, domicilio_ciudad, tipo_vivienda, comprobante_domicilio, created_at, profiles!user_id(email)",
       )
       .eq("estado", "pendiente")
       .order("created_at", { ascending: true })
@@ -78,9 +102,13 @@ export default async function AdminHomePage() {
     0,
   );
 
-  const metrics = [
+  const metrics: { label: string; value: number | string; href?: string }[] = [
     { label: "Usuarios totales", value: usersCount ?? 0 },
+    { label: "Cuidadores registrados", value: caregiversCount ?? 0, href: "/admin/cuidadores" },
+    { label: "Dueños registrados", value: ownersCount ?? 0, href: "/admin/duenos" },
+    { label: "Mascotas registradas", value: petsCount ?? 0 },
     { label: "Verificaciones pendientes", value: pendingVerifications ?? 0 },
+    { label: "Cambios de domicilio pendientes", value: pendingAddressChanges ?? 0 },
     { label: "Reservas activas", value: activeBookings ?? 0 },
     { label: "Plata retenida", value: `$${totalRetenido}` },
     { label: "Mensajes marcados", value: flaggedCount ?? 0 },
@@ -135,21 +163,39 @@ export default async function AdminHomePage() {
     }),
   );
 
+  const pendingAddressWithUrls = await Promise.all(
+    (pendingAddressList ?? []).map(async (row) => {
+      const comprobanteUrl = await signedUrl(row.comprobante_domicilio);
+      return { ...row, comprobanteUrl };
+    }),
+  );
+
   return (
     <div>
       <h1 className="text-2xl font-bold">Panel de administración</h1>
       <p className="mt-1 text-background/60">Métricas generales de Pimi.</p>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {metrics.map((m) => (
-          <div
-            key={m.label}
-            className="rounded-2xl border border-background/15 p-6"
-          >
-            <p className="text-sm text-background/60">{m.label}</p>
-            <p className="mt-1 text-3xl font-bold">{m.value}</p>
-          </div>
-        ))}
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {metrics.map((m) =>
+          m.href ? (
+            <a
+              key={m.label}
+              href={m.href}
+              className="rounded-2xl border border-background/15 p-6 transition hover:border-brand/40 hover:bg-background/5"
+            >
+              <p className="text-sm text-background/60">{m.label}</p>
+              <p className="mt-1 text-3xl font-bold">{m.value}</p>
+            </a>
+          ) : (
+            <div
+              key={m.label}
+              className="rounded-2xl border border-background/15 p-6"
+            >
+              <p className="text-sm text-background/60">{m.label}</p>
+              <p className="mt-1 text-3xl font-bold">{m.value}</p>
+            </div>
+          ),
+        )}
       </div>
 
       <div className="mt-10">
@@ -311,6 +357,84 @@ export default async function AdminHomePage() {
           ) : (
             <p className="p-6 text-sm text-background/60">
               No hay verificaciones pendientes.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-10">
+        <h2 className="text-lg font-semibold">
+          Cambios de domicilio pendientes
+        </h2>
+        <p className="mt-1 text-xs text-background/50">
+          El cuidador ya está verificado, pero pidió mudar su domicilio.
+          Revisá el comprobante nuevo antes de aprobar — al aprobar se
+          reemplaza el domicilio verificado que tenía.
+        </p>
+        <div className="mt-3 overflow-hidden rounded-2xl border border-background/15">
+          {pendingAddressWithUrls.length > 0 ? (
+            <table className="w-full text-left text-sm">
+              <thead className="bg-background/5 text-background/60">
+                <tr>
+                  <th className="px-4 py-2">Email</th>
+                  <th className="px-4 py-2">Domicilio nuevo</th>
+                  <th className="px-4 py-2">Comprobante</th>
+                  <th className="px-4 py-2">Solicitado</th>
+                  <th className="px-4 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingAddressWithUrls.map((row) => {
+                  const email =
+                    (row.profiles as { email: string }[] | null)?.[0]?.email ?? "—";
+                  const domicilio = [
+                    row.domicilio_calle && row.domicilio_numero
+                      ? `${row.domicilio_calle} ${row.domicilio_numero}`
+                      : row.domicilio_calle,
+                    row.domicilio_piso_depto,
+                    row.domicilio_barrio,
+                    row.domicilio_ciudad,
+                  ]
+                    .filter(Boolean)
+                    .join(", ");
+                  return (
+                    <tr key={row.id} className="border-t border-background/10 align-top">
+                      <td className="px-4 py-2">{email}</td>
+                      <td className="px-4 py-2">
+                        {domicilio || "—"}
+                        {row.tipo_vivienda && (
+                          <span className="text-background/50">
+                            {" "}
+                            · {row.tipo_vivienda}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2">
+                        {row.comprobanteUrl && (
+                          <a
+                            href={row.comprobanteUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-brand hover:underline"
+                          >
+                            Ver comprobante
+                          </a>
+                        )}
+                      </td>
+                      <td className="px-4 py-2">
+                        {new Date(row.created_at).toLocaleDateString("es-AR")}
+                      </td>
+                      <td className="px-4 py-2">
+                        <AddressChangeReviewActions requestId={row.id} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <p className="p-6 text-sm text-background/60">
+              No hay cambios de domicilio pendientes.
             </p>
           )}
         </div>

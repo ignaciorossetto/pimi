@@ -92,7 +92,11 @@ export function BookingWidget({
     });
 
     if (insertError) {
-      setError("No pudimos crear la reserva. Probá de nuevo.");
+      setError(
+        insertError.message.includes("ya tiene un cuidado confirmado")
+          ? insertError.message
+          : "No pudimos crear la reserva. Probá de nuevo.",
+      );
       setLoading(false);
       return;
     }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { PasswordField } from "@/components/auth/PasswordField";
 
 function safeNext(next: string | null): string | null {
   if (next && next.startsWith("/") && !next.startsWith("//")) {
@@ -27,7 +28,13 @@ async function resolveDestination(user: User): Promise<string> {
   return "/dashboard";
 }
 
-export function LoginForm({ next }: { next: string | null }) {
+export function LoginForm({
+  next,
+  isCaregiver = false,
+}: {
+  next: string | null;
+  isCaregiver?: boolean;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -70,29 +77,28 @@ export function LoginForm({ next }: { next: string | null }) {
           type="email"
           required
           placeholder="vos@email.com"
-          className="mt-1 w-full rounded-lg border border-foreground/20 px-4 py-2 focus:border-brand focus:outline-none"
+          className={`mt-1 w-full rounded-lg border border-foreground/20 px-4 py-2 focus:outline-none ${
+            isCaregiver ? "focus:border-accent" : "focus:border-brand"
+          }`}
         />
       </div>
-      <div>
-        <label className="text-sm font-medium" htmlFor="password">
-          Contraseña
-        </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          required
-          placeholder="••••••••"
-          className="mt-1 w-full rounded-lg border border-foreground/20 px-4 py-2 focus:border-brand focus:outline-none"
-        />
-      </div>
+      <PasswordField
+        id="password"
+        label="Contraseña"
+        required
+        placeholder="••••••••"
+        autoComplete="current-password"
+        accent={isCaregiver}
+      />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <button
         type="submit"
         disabled={loading}
-        className="mt-1 rounded-lg bg-brand px-4 py-2 font-semibold text-white transition hover:bg-brand-dark disabled:opacity-60"
+        className={`mt-1 rounded-lg px-4 py-2 font-semibold text-white transition disabled:opacity-60 ${
+          isCaregiver ? "bg-accent hover:opacity-90" : "bg-brand hover:bg-brand-dark"
+        }`}
       >
         {loading ? "Entrando..." : "Entrar"}
       </button>

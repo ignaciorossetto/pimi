@@ -36,7 +36,11 @@ export default async function RegisterPage({ searchParams }: PageProps) {
           ¿Ya tenés cuenta?{" "}
           <a
             href={isCaregiver ? "/login?rol=cuidador" : "/login"}
-            className="font-semibold text-brand hover:underline"
+            className={
+              isCaregiver
+                ? "font-semibold text-accent hover:underline"
+                : "font-semibold text-brand hover:underline"
+            }
           >
             Iniciá sesión
           </a>
