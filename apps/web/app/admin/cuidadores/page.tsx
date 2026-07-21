@@ -40,10 +40,9 @@ export default async function AdminCuidadoresPage() {
             </thead>
             <tbody>
               {rows.map((row) => {
-                const profile = row.profiles as {
-                  nombre: string | null;
-                  email: string;
-                } | null;
+                const profile = (
+                  row.profiles as { nombre: string | null; email: string }[] | null
+                )?.[0];
                 return (
                   <tr
                     key={row.user_id}

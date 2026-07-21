@@ -14,6 +14,11 @@ dist/
 .env.local
 .env.*.local
 
+# archivos temporales de Office (se crean solos al abrir un .xlsx/.docx/
+# .pptx y bloquean el archivo mientras está abierto — no son parte del
+# repo, y si Excel/Word los tiene abiertos ni git puede leerlos)
+~$*
+
 # misc
 .DS_Store
 *.pem

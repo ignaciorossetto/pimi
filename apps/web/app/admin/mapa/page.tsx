@@ -21,7 +21,8 @@ export default async function AdminMapaPage() {
 
   const puntos = conUbicacion.map((c) => ({
     id: c.user_id,
-    nombre: (c.profiles as { nombre: string | null } | null)?.nombre ?? null,
+    nombre:
+      (c.profiles as { nombre: string | null }[] | null)?.[0]?.nombre ?? null,
     lat: c.domicilio_lat as number,
     lng: c.domicilio_lng as number,
     zona: c.zona,
