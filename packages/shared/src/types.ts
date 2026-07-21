@@ -24,7 +24,7 @@ export interface CaregiverProfile {
   zona: string;
   bio: string;
   tarifaBase: number;
-  tiposDeServicio: Array<"hospedaje" | "visita_a_domicilio" | "paseo">;
+  tiposDeServicio: Array<"hospedaje" | "paseo">;
   radioCoberturaKm: number;
   verificado: boolean;
 }

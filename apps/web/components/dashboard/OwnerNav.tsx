@@ -1,7 +1,15 @@
 import type { User } from "@supabase/supabase-js";
 import { PawIcon } from "@/components/icons";
 import { getDisplayName } from "@/lib/auth/display-name";
+import { MobileNav } from "./MobileNav";
 import { UserMenu } from "./UserMenu";
+
+const NAV_LINKS = [
+  { href: "/dashboard", label: "Inicio" },
+  { href: "/mascotas", label: "Mis mascotas" },
+  { href: "/buscar-cuidador", label: "Buscar cuidador" },
+  { href: "/reservas", label: "Reservas" },
+];
 
 export function OwnerNav({ user }: { user: User }) {
   return (
@@ -13,21 +21,22 @@ export function OwnerNav({ user }: { user: User }) {
           </span>
           <span className="text-lg font-bold tracking-tight">Pimi</span>
         </a>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3 sm:gap-6">
           <div className="hidden items-center gap-6 text-sm font-medium text-foreground/70 sm:flex">
-            <a href="/dashboard" className="transition hover:text-foreground">
-              Inicio
-            </a>
-            <a href="/mascotas" className="transition hover:text-foreground">
-              Mis mascotas
-            </a>
-            <a href="/buscar-cuidador" className="transition hover:text-foreground">
-              Buscar cuidador
-            </a>
-            <a href="/reservas" className="transition hover:text-foreground">
-              Reservas
-            </a>
+            {NAV_LINKS.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="transition hover:text-foreground"
+              >
+                {link.label}
+              </a>
+            ))}
           </div>
+          {/* En mobile los links de arriba desaparecen (hidden hasta sm) —
+              sin esto no había ninguna forma de llegar a "Buscar cuidador"
+              una vez logueado en pantallas chicas. */}
+          <MobileNav links={NAV_LINKS} />
           <UserMenu
             name={getDisplayName(user)}
             email={user.email ?? ""}

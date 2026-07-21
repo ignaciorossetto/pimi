@@ -4,12 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { AddressMapPicker } from "@/components/ui/AddressMapPicker";
+import { SuggestedPriceModal } from "@/components/dashboard/SuggestedPriceModal";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const TARIFA_MINIMA = 8000;
 
+// "visita_a_domicilio" se sacó de la app: solo quedan paseo y hospedaje en
+// la casa del cuidador (decisión de producto explícita).
 const TIPOS_SERVICIO = [
   { value: "hospedaje", label: "Hospedaje en mi casa" },
-  { value: "visita_a_domicilio", label: "Visitas a domicilio" },
   { value: "paseo", label: "Paseos" },
 ];
 
@@ -41,6 +44,7 @@ export function EditCaregiverProfileForm({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<string | null>(profile.foto);
+  const [showPrecioSugerido, setShowPrecioSugerido] = useState(false);
 
   // Controlados solo para poder armar el texto de dirección que usa el
   // mapa — el resto de los campos del form siguen leyéndose por FormData.
@@ -63,10 +67,17 @@ export function EditCaregiverProfileForm({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setLoading(true);
 
     const form = event.currentTarget;
     const formData = new FormData(form);
+
+    const tarifaBase = Number(formData.get("tarifa_base") ?? 0);
+    if (tarifaBase > 0 && tarifaBase < TARIFA_MINIMA) {
+      setError(`La tarifa mínima es $${TARIFA_MINIMA} por día.`);
+      return;
+    }
+
+    setLoading(true);
     const supabase = createClient();
     const {
       data: { user },
@@ -114,12 +125,17 @@ export function EditCaregiverProfileForm({
 
     const tiposDeServicio = formData.getAll("tipos_de_servicio") as string[];
 
+    // La "zona" que se muestra en la búsqueda/perfil ya no se pide como
+    // campo aparte — sale sola del domicilio (barrio + ciudad) para no
+    // pedir el mismo dato dos veces.
+    const zona = [barrio.trim(), ciudad.trim()].filter(Boolean).join(", ");
+
     const { error: updateError } = await supabase
       .from("caregiver_profiles")
       .update({
-        zona: String(formData.get("zona") ?? "").trim(),
+        zona: zona || profile.zona,
         bio: String(formData.get("bio") ?? "").trim() || null,
-        tarifa_base: Number(formData.get("tarifa_base") ?? 0),
+        tarifa_base: tarifaBase,
         tipos_de_servicio: tiposDeServicio,
         foto,
         domicilio_calle: calle.trim() || null,
@@ -137,7 +153,11 @@ export function EditCaregiverProfileForm({
 
     setLoading(false);
     if (updateError) {
-      setError("No pudimos guardar los cambios. Probá de nuevo.");
+      setError(
+        updateError.message.includes("caregiver_profiles_tarifa_minima")
+          ? `La tarifa mínima es $${TARIFA_MINIMA} por día.`
+          : "No pudimos guardar los cambios. Probá de nuevo.",
+      );
       return;
     }
 
@@ -175,33 +195,31 @@ export function EditCaregiverProfileForm({
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className="text-sm font-medium" htmlFor="zona">
-            Zona
-          </label>
-          <input
-            id="zona"
-            name="zona"
-            required
-            defaultValue={profile.zona}
-            className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
-          />
-        </div>
-        <div>
-          <label className="text-sm font-medium" htmlFor="tarifa_base">
-            Tarifa por día (ARS)
-          </label>
-          <input
-            id="tarifa_base"
-            name="tarifa_base"
-            type="number"
-            min={0}
-            required
-            defaultValue={profile.tarifa_base}
-            className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
-          />
-        </div>
+      <div>
+        <label className="text-sm font-medium" htmlFor="tarifa_base">
+          Tarifa por día (ARS)
+        </label>
+        <input
+          id="tarifa_base"
+          name="tarifa_base"
+          type="number"
+          min={TARIFA_MINIMA}
+          step={100}
+          required
+          defaultValue={profile.tarifa_base || ""}
+          placeholder={`Mínimo $${TARIFA_MINIMA}`}
+          className="mt-1 w-full max-w-xs rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+        />
+        <p className="mt-1 text-xs text-foreground/50">
+          La tarifa mínima en Pimi es ${TARIFA_MINIMA} por día.
+        </p>
+        <button
+          type="button"
+          onClick={() => setShowPrecioSugerido(true)}
+          className="mt-1 text-xs font-medium text-brand hover:underline"
+        >
+          ¿No sabés cuánto cobrar?
+        </button>
       </div>
 
       <div>
@@ -243,8 +261,10 @@ export function EditCaregiverProfileForm({
       <div>
         <p className="text-sm font-semibold">Domicilio</p>
         <p className="text-xs text-foreground/50">
-          Si cambiaste de domicilio después de verificarte, avisale a
-          soporte — puede requerir volver a verificar.
+          Tu zona pública (la que ven los dueños) se arma sola con el
+          barrio y la ciudad de acá abajo. Si cambiaste de domicilio
+          después de verificarte, avisale a soporte — puede requerir
+          volver a verificar.
         </p>
         <div className="mt-2 grid gap-3 sm:grid-cols-2">
           <div>
@@ -361,6 +381,10 @@ export function EditCaregiverProfileForm({
       >
         {loading ? "Guardando..." : "Guardar cambios"}
       </button>
+
+      {showPrecioSugerido && (
+        <SuggestedPriceModal onClose={() => setShowPrecioSugerido(false)} />
+      )}
     </form>
   );
 }

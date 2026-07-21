@@ -146,6 +146,10 @@ export function DniVerificationForm({
         tiene_patio: formData.get("tiene_patio") === "on",
         domicilio_lat: lat,
         domicilio_lng: lng,
+        // La "zona" pública (la que ven los dueños en la búsqueda) ya no
+        // se pide como campo aparte en ningún formulario — se arma sola
+        // acá, con el barrio y la ciudad que el cuidador ya cargó arriba.
+        zona: [barrio.trim(), ciudad.trim() || "Córdoba"].filter(Boolean).join(", "),
       })
       .eq("user_id", user.id);
 
@@ -183,7 +187,7 @@ export function DniVerificationForm({
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="mt-2 grid gap-4 sm:grid-cols-2">
         {FILE_FIELDS.map(({ key, label, ayuda }) => (
           <div key={key}>
             <label className="text-sm font-medium" htmlFor={key}>

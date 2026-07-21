@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+// "visita_a_domicilio" se sacó de la app: solo quedan paseo y hospedaje en
+// la casa del cuidador (decisión de producto explícita).
 const TIPOS_SERVICIO = [
   { value: "hospedaje", label: "Hospedaje en mi casa" },
-  { value: "visita_a_domicilio", label: "Visitas a domicilio" },
   { value: "paseo", label: "Paseos" },
 ];
 
@@ -60,9 +61,11 @@ export function RegisterForm({ isCaregiver }: { isCaregiver: boolean }) {
     const roles = [isCaregiver ? "cuidador" : "dueño"];
     const metadata: Record<string, unknown> = { nombre, telefono, roles };
 
+    // Zona y tarifa ya NO se piden acá: zona se completa sola con el
+    // domicilio de la verificación de identidad, y la tarifa se carga
+    // después en "Editar perfil" (con el precio sugerido de mercado al
+    // lado). Pedirlas en el alta era redundante y frenaba el registro.
     if (isCaregiver) {
-      metadata.zona = String(formData.get("zona") ?? "").trim();
-      metadata.tarifa_base = String(formData.get("tarifa_base") ?? "0");
       metadata.bio = String(formData.get("bio") ?? "").trim();
       metadata.tipos_de_servicio = formData.getAll("tipos_de_servicio");
     }
@@ -157,24 +160,11 @@ export function RegisterForm({ isCaregiver }: { isCaregiver: boolean }) {
         <>
           <div className="h-px bg-foreground/10" />
           <p className="text-sm font-semibold">Tu perfil de cuidador</p>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field
-              label="Zona / barrio"
-              id="zona"
-              type="text"
-              placeholder="Ej. Nueva Córdoba, Córdoba"
-              required
-            />
-            <Field
-              label="Tarifa por día (ARS)"
-              id="tarifa_base"
-              type="number"
-              placeholder="8000"
-              min={0}
-              required
-            />
-          </div>
+          <p className="text-xs text-foreground/50">
+            La zona y la tarifa se completan más adelante: la zona sale
+            sola de tu domicilio cuando verifiques tu identidad, y la
+            tarifa la cargás en tu perfil cuando quieras.
+          </p>
 
           <div>
             <span className="text-sm font-medium">Tipo de servicio</span>

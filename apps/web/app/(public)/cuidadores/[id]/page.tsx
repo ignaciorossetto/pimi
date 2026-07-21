@@ -10,7 +10,6 @@ type PageProps = {
 
 const SERVICIO_LABEL: Record<string, string> = {
   hospedaje: "Hospedaje en su casa",
-  visita_a_domicilio: "Visitas a domicilio",
   paseo: "Paseos",
 };
 

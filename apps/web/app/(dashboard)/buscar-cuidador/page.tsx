@@ -20,7 +20,6 @@ type PageProps = {
 const SERVICIOS = [
   { value: "", label: "Cualquiera" },
   { value: "hospedaje", label: "Hospedaje en su casa" },
-  { value: "visita_a_domicilio", label: "Visitas a domicilio" },
   { value: "paseo", label: "Paseos" },
 ];
 
@@ -56,6 +55,7 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
 
   const hasSearched = Boolean(params.desde && params.hasta);
   let results: CaregiverResult[] = [];
+  let searchError: string | null = null;
 
   const lat = params.lat ? Number(params.lat) : null;
   const lng = params.lng ? Number(params.lng) : null;
@@ -66,14 +66,27 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
     // pública. Ahora es una función (RPC) porque necesita comparar contra
     // la coordenada REAL del cuidador para filtrar por radio sin nunca
     // exponerla — ver migración 0018_caregiver_geolocation_search.sql.
-    const { data } = await supabase.rpc("buscar_cuidadores", {
+    const { data, error } = await supabase.rpc("buscar_cuidadores", {
       p_lat: lat && !Number.isNaN(lat) ? lat : null,
       p_lng: lng && !Number.isNaN(lng) ? lng : null,
       p_radio_km: radio && !Number.isNaN(radio) ? radio : null,
       p_zona: params.zona || null,
       p_servicio: params.servicio || null,
     });
-    results = (data as CaregiverResult[] | null) ?? [];
+
+    if (error) {
+      // Antes esto se tragaba en silencio y la página mostraba "Sin
+      // resultados" sin distinguir un error real (ej. falta correr la
+      // migración 0018, o el RPC no tiene permiso) de que simplemente no
+      // hay cuidadores que matcheen. Se loguea server-side para que quede
+      // en los logs de Vercel/Supabase, y se le muestra algo útil al
+      // dueño en vez de un silencio confuso.
+      console.error("[Pimi] Error en buscar_cuidadores:", error);
+      searchError =
+        "Tuvimos un problema buscando cuidadores. Si el error persiste, avisale a soporte.";
+    } else {
+      results = (data as CaregiverResult[] | null) ?? [];
+    }
   }
 
   const linkParams = `mascota=${params.mascota ?? ""}&desde=${params.desde ?? ""}&hasta=${params.hasta ?? ""}`;
@@ -200,12 +213,18 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
       {hasSearched && (
         <div className="mt-8">
           <h2 className="text-lg font-semibold">
-            {results.length > 0
-              ? `${results.length} cuidadores encontrados`
-              : "Sin resultados"}
+            {searchError
+              ? "No pudimos buscar"
+              : results.length > 0
+                ? `${results.length} cuidadores encontrados`
+                : "Sin resultados"}
           </h2>
 
-          {results.length > 0 ? (
+          {searchError && (
+            <p className="mt-4 text-sm text-red-600">{searchError}</p>
+          )}
+
+          {!searchError && results.length > 0 ? (
             <>
               <div className="mt-4">
                 <CaregiverResultsMap
@@ -285,10 +304,12 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
               </div>
             </>
           ) : (
-            <p className="mt-4 text-sm text-foreground/60">
-              No encontramos cuidadores para esa búsqueda todavía. Probá
-              ampliando el radio o sacando el filtro de zona.
-            </p>
+            !searchError && (
+              <p className="mt-4 text-sm text-foreground/60">
+                No encontramos cuidadores para esa búsqueda todavía. Probá
+                ampliando el radio o sacando el filtro de zona.
+              </p>
+            )
           )}
         </div>
       )}
