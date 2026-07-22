@@ -9,10 +9,18 @@ type PageProps = {
 export default async function CompletarPerfilPage({ searchParams }: PageProps) {
   // Requiere sesión activa: se llega acá recién después del callback de
   // Google, nunca antes.
-  await requireUser("/completar-perfil");
+  const user = await requireUser("/completar-perfil");
 
   const { rol, next } = await searchParams;
   const rolInicial = rol === "cuidador" ? "cuidador" : "dueño";
+
+  // Google manda "full_name"/"name" en los metadatos (no "nombre", que es
+  // el campo propio que usa el alta con contraseña) — lo usamos para
+  // prellenar el campo, pero el usuario lo puede editar antes de guardar.
+  const metadata = user.user_metadata as
+    | { full_name?: string; name?: string }
+    | null;
+  const nombreInicial = metadata?.full_name || metadata?.name || "";
 
   return (
     <div className="w-full max-w-md">
@@ -25,7 +33,11 @@ export default async function CompletarPerfilPage({ searchParams }: PageProps) {
           mascota o si querés ser cuidador.
         </p>
 
-        <CompletarPerfilForm rolInicial={rolInicial} next={safeNext(next)} />
+        <CompletarPerfilForm
+          rolInicial={rolInicial}
+          nombreInicial={nombreInicial}
+          next={safeNext(next)}
+        />
       </div>
     </div>
   );

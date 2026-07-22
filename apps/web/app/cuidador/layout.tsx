@@ -1,5 +1,6 @@
 import { PawIcon } from "@/components/icons";
 import { UserMenu } from "@/components/dashboard/UserMenu";
+import { getAvatarUrl } from "@/lib/auth/avatar";
 import { getDisplayName } from "@/lib/auth/display-name";
 import { requireUser } from "@/lib/auth/require-user";
 
@@ -24,6 +25,7 @@ export default async function CuidadorLayout({
             name={getDisplayName(user)}
             email={user.email ?? ""}
             homeHref="/cuidador"
+            fotoUrl={getAvatarUrl(user)}
           />
         </nav>
       </header>

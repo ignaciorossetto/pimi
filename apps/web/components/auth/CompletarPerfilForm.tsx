@@ -19,9 +19,11 @@ const TIPOS_SERVICIO = [
  */
 export function CompletarPerfilForm({
   rolInicial,
+  nombreInicial,
   next,
 }: {
   rolInicial: "dueño" | "cuidador";
+  nombreInicial: string;
   next: string | null;
 }) {
   const router = useRouter();
@@ -35,8 +37,15 @@ export function CompletarPerfilForm({
     setLoading(true);
 
     const formData = new FormData(event.currentTarget);
+    const nombre = String(formData.get("nombre") ?? "").trim();
     const telefono = String(formData.get("telefono") ?? "").trim();
     const roles = [isCaregiver ? "cuidador" : "dueño"];
+
+    if (!nombre) {
+      setError("Contanos tu nombre.");
+      setLoading(false);
+      return;
+    }
 
     const supabase = createClient();
     const {
@@ -51,7 +60,7 @@ export function CompletarPerfilForm({
 
     const { error: profileError } = await supabase
       .from("profiles")
-      .update({ telefono: telefono || null, roles })
+      .update({ nombre, telefono: telefono || null, roles })
       .eq("id", user.id);
 
     if (profileError) {
@@ -88,6 +97,24 @@ export function CompletarPerfilForm({
 
   return (
     <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
+      <div>
+        <label className="text-sm font-medium" htmlFor="nombre">
+          Nombre completo
+        </label>
+        <input
+          id="nombre"
+          name="nombre"
+          type="text"
+          placeholder="Ana Pérez"
+          autoComplete="name"
+          required
+          defaultValue={nombreInicial}
+          className={`mt-1 w-full rounded-lg border border-foreground/20 px-4 py-2 focus:outline-none ${
+            isCaregiver ? "focus:border-accent" : "focus:border-brand"
+          }`}
+        />
+      </div>
+
       <div>
         <span className="text-sm font-medium">¿Qué querés hacer en Pimi?</span>
         <div className="mt-2 grid grid-cols-2 gap-3">

@@ -53,6 +53,7 @@ const ETAPA_LABEL: Record<string, string> = {
 export function CaregiverProfileCard({
   profile,
   addressChangeRequest,
+  verificationEstado,
 }: {
   profile: CaregiverProfile | null;
   addressChangeRequest?: {
@@ -60,6 +61,7 @@ export function CaregiverProfileCard({
     notas_admin: string | null;
     created_at: string;
   } | null;
+  verificationEstado?: string | null;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -77,6 +79,7 @@ export function CaregiverProfileCard({
         <EditCaregiverProfileForm
           profile={profile}
           addressChangeRequest={addressChangeRequest}
+          verificationEstado={verificationEstado}
           onSaved={() => setEditing(false)}
         />
         <button

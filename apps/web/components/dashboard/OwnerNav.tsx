@@ -1,5 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { PawIcon } from "@/components/icons";
+import { getAvatarUrl } from "@/lib/auth/avatar";
 import { getDisplayName } from "@/lib/auth/display-name";
 import { MobileNav } from "./MobileNav";
 import { UserMenu } from "./UserMenu";
@@ -41,6 +42,7 @@ export function OwnerNav({ user }: { user: User }) {
             name={getDisplayName(user)}
             email={user.email ?? ""}
             homeHref="/dashboard"
+            fotoUrl={getAvatarUrl(user)}
           />
         </div>
       </nav>

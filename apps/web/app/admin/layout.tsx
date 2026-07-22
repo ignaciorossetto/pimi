@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { PawIcon } from "@/components/icons";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { UserMenu } from "@/components/dashboard/UserMenu";
+import { getAvatarUrl } from "@/lib/auth/avatar";
 import { getDisplayName } from "@/lib/auth/display-name";
 import { requireUser } from "@/lib/auth/require-user";
 
@@ -35,6 +36,7 @@ export default async function AdminLayout({
             name={getDisplayName(user)}
             email={user.email ?? ""}
             homeHref="/admin"
+            fotoUrl={getAvatarUrl(user)}
           />
         </nav>
         <AdminNav />

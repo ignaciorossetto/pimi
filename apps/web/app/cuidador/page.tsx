@@ -186,6 +186,7 @@ export default async function CuidadorHomePage() {
         <CaregiverProfileCard
           profile={caregiverProfile}
           addressChangeRequest={addressChangeRequest}
+          verificationEstado={verification?.estado ?? null}
         />
       </section>
 

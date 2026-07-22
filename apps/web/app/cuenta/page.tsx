@@ -11,12 +11,36 @@ function safeFrom(from: string | undefined): string {
   return "/dashboard";
 }
 
+const PROVIDER_LABEL: Record<string, string> = {
+  google: "Google",
+  email: "Email y contraseña",
+};
+
 export default async function AccountPage({ searchParams }: PageProps) {
   const { from } = await searchParams;
   const user = await requireUser("/cuenta");
   const backHref = safeFrom(from);
   const telefono = (user.user_metadata as { telefono?: string } | null)
     ?.telefono;
+
+  // "providers" lista todos los métodos de acceso vinculados a la cuenta
+  // (hoy siempre uno solo: nunca implementamos vincular varios). Si
+  // "email" no está ahí, la cuenta se creó con Google y no tiene
+  // contraseña propia — no tiene sentido ofrecer "cambiar contraseña".
+  const appMetadata = user.app_metadata as
+    | { provider?: string; providers?: string[] }
+    | null;
+  const providers = appMetadata?.providers ?? [];
+  const tieneContrasena = providers.includes("email");
+  const proveedorPrincipal = appMetadata?.provider ?? providers[0] ?? null;
+
+  const fechaAlta = user.created_at
+    ? new Date(user.created_at).toLocaleDateString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    : null;
 
   return (
     <div>
@@ -45,13 +69,37 @@ export default async function AccountPage({ searchParams }: PageProps) {
               <dd className="font-medium">{telefono}</dd>
             </div>
           )}
+          <div>
+            <dt className="text-foreground/50">Método de acceso</dt>
+            <dd className="font-medium">
+              {proveedorPrincipal
+                ? (PROVIDER_LABEL[proveedorPrincipal] ?? proveedorPrincipal)
+                : "—"}
+            </dd>
+          </div>
+          {fechaAlta && (
+            <div>
+              <dt className="text-foreground/50">Cuenta creada el</dt>
+              <dd className="font-medium">{fechaAlta}</dd>
+            </div>
+          )}
         </dl>
       </div>
 
-      <div className="mt-6 rounded-2xl bg-background p-6 shadow-sm ring-1 ring-foreground/10">
-        <h2 className="font-semibold">Cambiar contraseña</h2>
-        <ChangePasswordForm />
-      </div>
+      {tieneContrasena ? (
+        <div className="mt-6 rounded-2xl bg-background p-6 shadow-sm ring-1 ring-foreground/10">
+          <h2 className="font-semibold">Cambiar contraseña</h2>
+          <ChangePasswordForm />
+        </div>
+      ) : (
+        <div className="mt-6 rounded-2xl bg-background p-6 shadow-sm ring-1 ring-foreground/10">
+          <h2 className="font-semibold">Contraseña</h2>
+          <p className="mt-2 text-sm text-foreground/60">
+            Tu cuenta se creó con Google, así que no tenés una contraseña de
+            Pimi — iniciás sesión directo con tu cuenta de Google.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

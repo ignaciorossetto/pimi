@@ -73,6 +73,7 @@ const ESTADO_SOLICITUD_LABEL: Record<string, string> = {
 export function EditCaregiverProfileForm({
   profile,
   addressChangeRequest,
+  verificationEstado,
   onSaved,
 }: {
   profile: CaregiverProfile;
@@ -81,6 +82,7 @@ export function EditCaregiverProfileForm({
     notas_admin: string | null;
     created_at: string;
   } | null;
+  verificationEstado?: string | null;
   onSaved?: () => void;
 }) {
   const router = useRouter();
@@ -90,6 +92,13 @@ export function EditCaregiverProfileForm({
   const [showPrecioSugerido, setShowPrecioSugerido] = useState(false);
   const [showAddressChangeForm, setShowAddressChangeForm] = useState(false);
   const domicilioVerificado = Boolean(profile.verificado);
+  const verificacionPendiente = verificationEstado === "pendiente";
+  // El domicilio se bloquea tanto si ya está verificado (hay que pedir un
+  // cambio revisado por un admin) como si hay una verificación recién
+  // enviada y todavía sin decidir — mientras está "pendiente" tampoco
+  // corresponde dejarlo tocar acá, porque el domicilio que se revisa es
+  // justamente el que se mandó con esa verificación (ver DniVerificationForm).
+  const domicilioBloqueado = domicilioVerificado || verificacionPendiente;
 
   // Controlados solo para poder armar el texto de dirección que usa el
   // mapa — el resto de los campos del form siguen leyéndose por FormData.
@@ -190,6 +199,28 @@ export function EditCaregiverProfileForm({
     // pedir el mismo dato dos veces.
     const zona = [barrio.trim(), ciudad.trim()].filter(Boolean).join(", ");
 
+    // Campos de domicilio: solo se mandan si de verdad son editables en
+    // este estado. Si están bloqueados (verificado o verificación
+    // pendiente), esa sección del form ni se renderiza — mandarlos igual
+    // pisaría el valor real con lo que haya (o no) en un campo oculto
+    // (ej. "domicilio_piso_depto" quedaría en null aunque no cambió), y
+    // el trigger que protege el domicilio verificado rechazaría TODO el
+    // update, no solo esa parte.
+    const domicilioFields = domicilioBloqueado
+      ? {}
+      : {
+          domicilio_calle: calle.trim() || null,
+          domicilio_numero: numero.trim() || null,
+          domicilio_piso_depto:
+            String(formData.get("domicilio_piso_depto") ?? "").trim() || null,
+          domicilio_barrio: barrio.trim() || null,
+          domicilio_ciudad: ciudad.trim() || null,
+          tipo_vivienda: String(formData.get("tipo_vivienda") ?? "") || null,
+          tiene_patio: formData.get("tiene_patio") === "on",
+          domicilio_lat: lat,
+          domicilio_lng: lng,
+        };
+
     const { error: updateError } = await supabase
       .from("caregiver_profiles")
       .update({
@@ -198,20 +229,11 @@ export function EditCaregiverProfileForm({
         tarifa_base: tarifaBase,
         tipos_de_servicio: tiposDeServicio,
         foto,
-        domicilio_calle: calle.trim() || null,
-        domicilio_numero: numero.trim() || null,
-        domicilio_piso_depto:
-          String(formData.get("domicilio_piso_depto") ?? "").trim() || null,
-        domicilio_barrio: barrio.trim() || null,
-        domicilio_ciudad: ciudad.trim() || null,
-        tipo_vivienda: String(formData.get("tipo_vivienda") ?? "") || null,
-        tiene_patio: formData.get("tiene_patio") === "on",
         tiene_mascotas_propias: formData.get("tiene_mascotas_propias") === "on",
-        domicilio_lat: lat,
-        domicilio_lng: lng,
         tamanos_aceptados: tamanosAceptados,
         especies_aceptadas: especiesAceptadas,
         etapas_aceptadas: etapasAceptadas,
+        ...domicilioFields,
       })
       .eq("user_id", user.id);
 
@@ -220,7 +242,9 @@ export function EditCaregiverProfileForm({
       setError(
         updateError.message.includes("caregiver_profiles_tarifa_minima")
           ? `La tarifa mínima es $${TARIFA_MINIMA} por día.`
-          : "No pudimos guardar los cambios. Probá de nuevo.",
+          : updateError.message.includes("domicilio ya está verificado")
+            ? updateError.message
+            : "No pudimos guardar los cambios. Probá de nuevo.",
       );
       return;
     }
@@ -428,13 +452,12 @@ export function EditCaregiverProfileForm({
       <div>
         <p className="text-sm font-semibold">Domicilio</p>
 
-        {domicilioVerificado ? (
+        {domicilioBloqueado ? (
           <>
             <p className="text-xs text-foreground/50">
-              Tu domicilio ya está verificado con documentación, así que no
-              se puede editar directamente acá. Si te mudaste, pedí un
-              cambio de domicilio para que un admin revise el comprobante
-              nuevo.
+              {verificacionPendiente
+                ? "Ya mandaste tu domicilio como parte de la verificación de identidad, así que no se puede editar mientras un admin lo revisa."
+                : "Tu domicilio ya está verificado con documentación, así que no se puede editar directamente acá. Si te mudaste, pedí un cambio de domicilio para que un admin revise el comprobante nuevo."}
             </p>
             <div className="mt-2 rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4 text-sm text-foreground/80">
               <p>
@@ -456,7 +479,8 @@ export function EditCaregiverProfileForm({
               )}
             </div>
 
-            {addressChangeRequest?.estado === "pendiente" ? (
+            {verificacionPendiente ? null : addressChangeRequest?.estado ===
+              "pendiente" ? (
               <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">
                 <p className="font-semibold text-amber-700">
                   Solicitud de cambio de domicilio en revisión
