@@ -10,7 +10,7 @@ export default async function AdminMapaPage() {
   const { data: cuidadores } = await supabase
     .from("caregiver_profiles")
     .select(
-      "user_id, zona, tarifa_base, tier, verificado, domicilio_lat, domicilio_lng, profiles(nombre)",
+      "user_id, zona, tarifa_base, tier, verificado, domicilio_lat, domicilio_lng",
     );
 
   const rows = cuidadores ?? [];
@@ -19,10 +19,17 @@ export default async function AdminMapaPage() {
   );
   const sinUbicacion = rows.length - conUbicacion.length;
 
+  // "profiles" aparte y cruzado con un Map, no embebido — ver el mismo
+  // comentario en admin/cuidadores/page.tsx.
+  const userIds = conUbicacion.map((c) => c.user_id);
+  const { data: profilesData } = userIds.length
+    ? await supabase.from("profiles").select("id, nombre").in("id", userIds)
+    : { data: [] as { id: string; nombre: string | null }[] };
+  const nombreMap = new Map((profilesData ?? []).map((p) => [p.id, p.nombre]));
+
   const puntos = conUbicacion.map((c) => ({
     id: c.user_id,
-    nombre:
-      (c.profiles as { nombre: string | null }[] | null)?.[0]?.nombre ?? null,
+    nombre: nombreMap.get(c.user_id) ?? null,
     lat: c.domicilio_lat as number,
     lng: c.domicilio_lng as number,
     zona: c.zona,

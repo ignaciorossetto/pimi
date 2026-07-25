@@ -9,7 +9,6 @@ type PageProps = {
     mascota?: string;
     desde?: string;
     hasta?: string;
-    zona?: string;
     servicio?: string;
     lat?: string;
     lng?: string;
@@ -18,7 +17,6 @@ type PageProps = {
 };
 
 const SERVICIOS = [
-  { value: "", label: "Cualquiera" },
   { value: "hospedaje", label: "Hospedaje en su casa" },
   { value: "paseo", label: "Paseos" },
 ];
@@ -52,6 +50,11 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
     .select("id, nombre")
     .eq("owner_id", user.id)
     .order("created_at", { ascending: false });
+
+  // Si el dueño tiene una sola mascota, se la preseleccionamos — no tiene
+  // sentido obligarlo a elegir entre una sola opción. Con varias, se deja
+  // el listado como estaba (sin default) para que elija a cuál.
+  const mascotaUnica = pets && pets.length === 1 ? pets[0].id : null;
 
   const hasSearched = Boolean(params.desde && params.hasta);
   let results: CaregiverResult[] = [];
@@ -125,7 +128,6 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
       p_lat: lat && !Number.isNaN(lat) ? lat : null,
       p_lng: lng && !Number.isNaN(lng) ? lng : null,
       p_radio_km: radio && !Number.isNaN(radio) ? radio : null,
-      p_zona: params.zona || null,
       p_servicio: params.servicio || null,
       p_especie: mascotaSeleccionada?.especie ?? null,
       p_tamano: mascotaSeleccionada?.tamano ?? null,
@@ -169,7 +171,7 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
           <select
             id="mascota"
             name="mascota"
-            defaultValue={params.mascota ?? ""}
+            defaultValue={params.mascota ?? mascotaUnica ?? ""}
             required
             className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
           >
@@ -182,18 +184,6 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
               </option>
             ))}
           </select>
-        </div>
-        <div>
-          <label className="text-sm font-medium" htmlFor="zona">
-            Zona (opcional)
-          </label>
-          <input
-            id="zona"
-            name="zona"
-            defaultValue={params.zona ?? ""}
-            placeholder="Ej. Nueva Córdoba"
-            className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
-          />
         </div>
         <div>
           <label className="text-sm font-medium" htmlFor="desde">
@@ -229,8 +219,12 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
             id="servicio"
             name="servicio"
             defaultValue={params.servicio ?? ""}
+            required
             className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
           >
+            <option value="" disabled>
+              -- Elegí un servicio --
+            </option>
             {SERVICIOS.map((s) => (
               <option key={s.value} value={s.value}>
                 {s.label}
@@ -385,9 +379,8 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
             !searchError && (
               <p className="mt-4 text-sm text-foreground/60">
                 No encontramos cuidadores para esa búsqueda todavía. Probá
-                ampliando el radio, sacando el filtro de zona, o puede ser
-                que los cuidadores cerca tuyo no acepten el tamaño/edad de
-                tu mascota.
+                ampliando el radio, o puede ser que los cuidadores cerca
+                tuyo no acepten el tamaño/edad de tu mascota.
               </p>
             )
           )}

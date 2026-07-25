@@ -10,11 +10,22 @@ export default async function AdminCuidadoresPage() {
   const { data: cuidadores } = await supabase
     .from("caregiver_profiles")
     .select(
-      "user_id, zona, tarifa_base, tier, verificado, foto, reviews_count, rating_promedio, tiene_mascotas_propias, created_at, profiles(nombre, email)",
+      "user_id, zona, tarifa_base, tier, verificado, foto, reviews_count, rating_promedio, tiene_mascotas_propias, created_at",
     )
     .order("created_at", { ascending: false });
 
   const rows = cuidadores ?? [];
+
+  // Se trae "profiles" aparte (en vez de embebido con
+  // "profiles(nombre, email)") y se cruza acá con un Map — el embed
+  // automático de Supabase no estaba devolviendo el nombre de forma
+  // confiable para todas las cuentas, este patrón es el mismo que ya usan
+  // el resto de las páginas de admin y no depende de esa detección.
+  const userIds = rows.map((r) => r.user_id);
+  const { data: profilesData } = userIds.length
+    ? await supabase.from("profiles").select("id, nombre, email").in("id", userIds)
+    : { data: [] as { id: string; nombre: string | null; email: string }[] };
+  const profileMap = new Map((profilesData ?? []).map((p) => [p.id, p]));
 
   return (
     <div>
@@ -40,9 +51,7 @@ export default async function AdminCuidadoresPage() {
             </thead>
             <tbody>
               {rows.map((row) => {
-                const profile = (
-                  row.profiles as { nombre: string | null; email: string }[] | null
-                )?.[0];
+                const profile = profileMap.get(row.user_id);
                 return (
                   <tr
                     key={row.user_id}

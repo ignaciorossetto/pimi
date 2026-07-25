@@ -1,6 +1,7 @@
 import { BookingWidget } from "@/components/booking/BookingWidget";
 import { TierBadge } from "@/components/booking/TierBadge";
 import { CaregiverResultsMap } from "@/components/search/CaregiverResultsMap";
+import { BackToResultsButton } from "@/components/search/BackToResultsButton";
 import { createClient } from "@/lib/supabase/server";
 
 type PageProps = {
@@ -84,6 +85,10 @@ export default async function CaregiverProfilePage({
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
+      <div className="mb-4">
+        <BackToResultsButton />
+      </div>
+
       <div className="flex items-start gap-4">
         <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full bg-foreground/5">
           {caregiver.foto ? (
@@ -210,6 +215,17 @@ export default async function CaregiverProfilePage({
                   perfilHref: `/cuidadores/${caregiver.id}`,
                 },
               ]}
+              // Con un solo resultado, sin esto el mapa quedaba fijo en
+              // el centro de Córdoba en vez de en el círculo del
+              // cuidador (fitBounds solo ajusta con 2+ puntos).
+              centerLat={caregiver.zona_lat}
+              centerLng={caregiver.zona_lng}
+              zoom={13}
+              // No es una búsqueda con radio — sin esto se dibujaba
+              // además un pin de "tu ubicación de búsqueda" pisando el
+              // círculo del cuidador, duplicando el punto en bounds y
+              // forzando fitBounds a un zoom máximo pese al prop "zoom".
+              mostrarPinCentro={false}
             />
           </div>
           <p className="mt-2 text-xs text-foreground/50">

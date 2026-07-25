@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Pimi — Flujos de proceso (visual)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --brand:#ff7a45; --brand-dark:#e4602e; --accent:#2f6f5e;
+    --ok:#1f8a53; --warn:#b8860b; --danger:#c0392b;
+    --bg:#faf9f7; --card:#ffffff; --text:#20242c; --muted:#6b7280; --border:#e6e1da;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:32px 20px 80px; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .wrap{max-width:980px; margin:0 auto}
+  header{margin-bottom:28px}
+  header .kicker{font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--brand-dark)}
+  h1{font-size:26px; margin:6px 0 4px}
+  header p{color:var(--muted); font-size:14px; margin:0}
+  nav.toc{display:flex; flex-wrap:wrap; gap:8px; margin:22px 0 40px}
+  nav.toc a{
+    font-size:13px; font-weight:600; text-decoration:none; color:var(--text);
+    background:var(--card); border:1px solid var(--border); border-radius:999px; padding:7px 14px;
+  }
+  nav.toc a:hover{border-color:var(--brand)}
+  section{margin-bottom:64px; scroll-margin-top:20px}
+  section h2{
+    font-size:18px; margin:0 0 4px; padding-left:14px; border-left:4px solid var(--brand);
+  }
+  section h2.cuidador-accent{border-left-color:var(--accent)}
+  section .desc{color:var(--muted); font-size:13.5px; margin:6px 0 20px 18px; max-width:760px}
+  .legend{display:flex; gap:18px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin:0 0 22px 18px}
+  .legend span{display:inline-flex; align-items:center; gap:6px}
+  .dot{width:9px; height:9px; border-radius:50%; display:inline-block}
+  .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.danger{background:var(--danger)}
+  .dot.dueno{background:var(--brand)} .dot.cuidador{background:var(--accent)}
+
+  .flow{display:flex; flex-direction:column; align-items:center}
+  .step{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:12px 18px; text-align:center; max-width:400px; width:100%;
+    box-shadow:0 1px 2px rgba(20,20,20,.04); font-size:13.5px; font-weight:600;
+  }
+  .step .sub{display:block; font-weight:400; font-size:12px; color:var(--muted); margin-top:3px}
+  .step.start{background:var(--text); color:#fff; border-radius:999px; font-weight:700}
+  .step.decision{border-style:dashed; border-color:#9aa0aa; background:#fff}
+  .step.dueno{border-left:4px solid var(--brand)}
+  .step.cuidador{border-left:4px solid var(--accent)}
+  .step.ok{border-color:var(--ok); color:var(--ok)}
+  .step.warn{border-color:var(--warn); color:var(--warn)}
+  .step.danger{border-color:var(--danger); color:var(--danger)}
+  .step.note{
+    background:transparent; border:none; box-shadow:none; font-weight:400; font-style:italic;
+    color:var(--muted); font-size:12px; max-width:440px; padding:2px 10px;
+  }
+
+  .arrow{width:2px; height:24px; background:#c7c2ba; position:relative}
+  .arrow::after{
+    content:""; position:absolute; bottom:-1px; left:50%; transform:translateX(-50%);
+    border-left:5px solid transparent; border-right:5px solid transparent; border-top:7px solid #c7c2ba;
+  }
+
+  .fork{display:flex; gap:26px; justify-content:center; align-items:flex-start; flex-wrap:wrap; margin-top:2px}
+  .branch{display:flex; flex-direction:column; align-items:center; flex:1; min-width:220px; max-width:340px}
+  .fork-label{
+    font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+    padding:3px 11px; border-radius:999px; margin-bottom:8px; white-space:nowrap;
+  }
+  .fork-label.ok{background:rgba(31,138,83,.12); color:var(--ok)}
+  .fork-label.danger{background:rgba(192,57,43,.12); color:var(--danger)}
+  .fork-label.neutral{background:#eee9e2; color:var(--muted)}
+  .fork-label.dueno{background:rgba(255,122,69,.14); color:var(--brand-dark)}
+  .fork-label.cuidador{background:rgba(47,111,94,.14); color:var(--accent)}
+
+  .columns{display:flex; gap:32px; justify-content:center; flex-wrap:wrap; align-items:flex-start}
+  .col-title{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; margin-bottom:10px; color:var(--muted)}
+
+  footer{margin-top:40px; color:var(--muted); font-size:12px; text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Pimi — Documentación de producto</div>
+    <h1>Flujos de proceso (visual)</h1>
+    <p>Versión 1 — 22 de julio de 2026. Diagramas basados en el flujo real implementado (código + migraciones de Supabase), no solo en el diseño planeado.</p>
+  </header>
+
+  <nav class="toc">
+    <a href="#usuarios">1. Usuarios: registro y login</a>
+    <a href="#verificacion">2. Verificación de identidad</a>
+    <a href="#mascotas">3. Mascotas: alta y baja</a>
+    <a href="#reserva">4. Búsqueda y reserva</a>
+    <a href="#pago">5. Pago con Mercado Pago</a>
+  </nav>
+
+  <!-- ============ 1. USUARIOS ============ -->
+  <section id="usuarios">
+    <h2>1. Tipos de usuario, registro y login</h2>
+    <p class="desc">Un mismo formulario de registro sirve para los dos roles (<code>?rol=cuidador</code> cambia el copy y los campos extra). El rol se guarda en <code>metadata.roles</code> del usuario de Supabase Auth. Login admite email/contraseña o Google.</p>
+    <div class="legend">
+      <span><span class="dot dueno"></span>Dueño</span>
+      <span><span class="dot cuidador"></span>Cuidador</span>
+    </div>
+
+    <div class="flow">
+      <div class="step start">Visitante entra a Pimi</div>
+      <div class="arrow"></div>
+      <div class="step decision">¿Ya tiene cuenta?</div>
+      <div class="fork">
+        <div class="branch">
+          <div class="fork-label neutral">No — se registra</div>
+          <div class="step">Elige rol<span class="sub">Dueño de mascota o Cuidador</span></div>
+          <div class="arrow"></div>
+          <div class="step">Completa formulario<span class="sub">nombre, teléfono, email + contraseña</span></div>
+          <div class="arrow"></div>
+          <div class="step decision">¿Se registra con Google?</div>
+          <div class="fork">
+            <div class="branch">
+              <div class="fork-label neutral">No</div>
+              <div class="step">Confirma email<span class="sub">link enviado por Supabase Auth</span></div>
+            </div>
+            <div class="branch">
+              <div class="fork-label neutral">Sí</div>
+              <div class="step">Cuenta activa al instante<span class="sub">sin paso de confirmación</span></div>
+            </div>
+          </div>
+          <div class="arrow"></div>
+          <div class="step">Cuenta creada</div>
+        </div>
+        <div class="branch">
+          <div class="fork-label neutral">Sí — inicia sesión</div>
+          <div class="step">Login<span class="sub">email + contraseña, o Google</span></div>
+        </div>
+      </div>
+      <div class="arrow"></div>
+      <div class="fork">
+        <div class="branch">
+          <div class="fork-label dueno">Rol: dueño</div>
+          <div class="step dueno">Dashboard del dueño<span class="sub">cargar mascotas, buscar cuidador</span></div>
+        </div>
+        <div class="branch">
+          <div class="fork-label cuidador">Rol: cuidador</div>
+          <div class="step cuidador">Completa perfil de cuidador<span class="sub">zona, tarifa, tipo de servicio, bio</span></div>
+          <div class="arrow"></div>
+          <div class="step cuidador">Verificación de identidad<span class="sub">ver diagrama 2 →</span></div>
+        </div>
+      </div>
+      <div class="step note">Nota: la zona del cuidador ya no se pide en el registro — sale sola del domicilio cargado durante la verificación.</div>
+    </div>
+  </section>
+
+  <!-- ============ 2. VERIFICACIÓN ============ -->
+  <section id="verificacion">
+    <h2 class="cuidador-accent">2. Verificación de identidad del cuidador</h2>
+    <p class="desc">Gating real a nivel de base de datos, no solo de interfaz: un cuidador no verificado puede usar la app con normalidad, pero no aparece en búsquedas ni puede recibir reservas (filtro <code>verificado = true</code> en la vista pública + policy de RLS en <code>bookings</code>).</p>
+    <div class="legend">
+      <span><span class="dot ok"></span>Aprobado</span>
+      <span><span class="dot danger"></span>Rechazado</span>
+      <span><span class="dot warn"></span>Pendiente</span>
+    </div>
+
+    <div class="flow">
+      <div class="step cuidador">Cuidador con perfil completo<span class="sub">todavía no verificado</span></div>
+      <div class="arrow"></div>
+      <div class="step">Sube documentación<span class="sub">DNI frente y dorso, selfie con el DNI, comprobante de domicilio + datos estructurados</span></div>
+      <div class="arrow"></div>
+      <div class="step">Se guarda en Storage privado<span class="sub">bucket "verificaciones", nunca público</span></div>
+      <div class="arrow"></div>
+      <div class="step warn">Queda en estado "pendiente"<span class="sub">trigger fuerza este estado — el cliente no puede auto-aprobarse</span></div>
+      <div class="arrow"></div>
+      <div class="step">Admin revisa en /admin<span class="sub">compara DNI vs. selfie, URLs firmadas de 10 min</span></div>
+      <div class="arrow"></div>
+      <div class="step decision">¿Admin aprueba?</div>
+      <div class="fork">
+        <div class="branch">
+          <div class="fork-label danger">Rechaza</div>
+          <div class="step danger">Vuelve a "pendiente"<span class="sub">puede reenviar documentación</span></div>
+        </div>
+        <div class="branch">
+          <div class="fork-label ok">Aprueba</div>
+          <div class="step ok">verificado = true</div>
+          <div class="arrow"></div>
+          <div class="step">Aparece en búsquedas y puede recibir reservas</div>
+        </div>
+      </div>
+      <div class="step note">Un mismo número de DNI no puede quedar aprobado en dos cuentas al mismo tiempo (índice único parcial).</div>
+    </div>
+  </section>
+
+  <!-- ============ 3. MASCOTAS ============ -->
+  <section id="mascotas">
+    <h2>3. Mascotas: alta, edición y baja</h2>
+    <p class="desc">Cada mascota pertenece a un único dueño (RLS: sólo el dueño ve y edita sus propias mascotas).</p>
+
+    <div class="columns">
+      <div>
+        <div class="col-title">Crear / editar</div>
+        <div class="flow">
+          <div class="step dueno">Dashboard del dueño</div>
+          <div class="arrow"></div>
+          <div class="step">Agregar mascota</div>
+          <div class="arrow"></div>
+          <div class="step">Formulario<span class="sub">especie, raza, tamaño, edad, temperamento, necesidades médicas, foto</span></div>
+          <div class="arrow"></div>
+          <div class="step ok">Mascota guardada</div>
+          <div class="arrow"></div>
+          <div class="step">Editar cuando quiera<span class="sub">mismo formulario, precargado</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="col-title">Eliminar</div>
+        <div class="flow">
+          <div class="step">Detalle de la mascota</div>
+          <div class="arrow"></div>
+          <div class="step danger">Eliminar mascota</div>
+          <div class="arrow"></div>
+          <div class="step decision">Confirmación<span class="sub">"¿Seguro? No se puede deshacer"</span></div>
+          <div class="fork">
+            <div class="branch">
+              <div class="fork-label neutral">Cancela</div>
+              <div class="step">Vuelve al detalle</div>
+            </div>
+            <div class="branch">
+              <div class="fork-label danger">Confirma</div>
+              <div class="step danger">Borrado definitivo</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4. RESERVA ============ -->
+  <section id="reserva">
+    <h2>4. Búsqueda y reserva de un cuidador</h2>
+    <p class="desc">Estados de <code>bookings.estado</code>: solicitado → aceptado → en_curso → completado (o cancelado / disputado en cualquier punto antes de completarse).</p>
+    <div class="legend">
+      <span><span class="dot dueno"></span>Acción del dueño</span>
+      <span><span class="dot cuidador"></span>Acción del cuidador</span>
+      <span><span class="dot ok"></span>Automático (trigger de base de datos)</span>
+    </div>
+
+    <div class="flow">
+      <div class="step dueno">Busca cuidador por zona y fechas</div>
+      <div class="arrow"></div>
+      <div class="step">Ve perfiles verificados<span class="sub">tarifa, reseñas, tipo de servicio</span></div>
+      <div class="arrow"></div>
+      <div class="step dueno">Envía solicitud de reserva<span class="sub">estado: solicitado</span></div>
+      <div class="arrow"></div>
+      <div class="step decision cuidador">Cuidador responde</div>
+      <div class="fork">
+        <div class="branch">
+          <div class="fork-label danger">Rechaza</div>
+          <div class="step danger">Estado: cancelado — fin</div>
+        </div>
+        <div class="branch">
+          <div class="fork-label ok">Acepta</div>
+          <div class="step ok">Estado: aceptado</div>
+          <div class="arrow"></div>
+          <div class="step dueno">Dueño paga<span class="sub">ver diagrama 5 →</span></div>
+          <div class="arrow"></div>
+          <div class="step ok">Pago retenido</div>
+          <div class="arrow"></div>
+          <div class="step cuidador">Check-in de llegada<span class="sub">foto + geolocalización obligatorias</span></div>
+          <div class="arrow"></div>
+          <div class="step ok">Estado: en_curso<span class="sub">se mueve solo, sin acción manual</span></div>
+          <div class="arrow"></div>
+          <div class="step cuidador">Check-ins diarios<span class="sub">opcionales, foto + ubicación</span></div>
+          <div class="arrow"></div>
+          <div class="step cuidador">Check-in de salida</div>
+          <div class="arrow"></div>
+          <div class="step ok">Estado: completado<span class="sub">automático</span></div>
+          <div class="arrow"></div>
+          <div class="step">Reseña bidireccional<span class="sub">dueño y cuidador se califican mutuamente</span></div>
+        </div>
+      </div>
+      <div class="step note">El chat de la reserva detecta patrones de contacto fuera de la app (WhatsApp, transferencias, etc.) y avisa al usuario antes de enviar el mensaje.</div>
+    </div>
+  </section>
+
+  <!-- ============ 5. PAGO ============ -->
+  <section id="pago">
+    <h2>5. Pago con Mercado Pago</h2>
+    <p class="desc">Pimi cobra el 100% a su propia cuenta de Mercado Pago; el estado "retenido / liberado" vive en la tabla <code>payments</code>, no en MP. El pago a la parte del cuidador es manual en v1 (transferencia por fuera de la app).</p>
+    <div class="legend">
+      <span><span class="dot warn"></span>Retenido</span>
+      <span><span class="dot ok"></span>Liberado</span>
+      <span><span class="dot danger"></span>Reembolsado</span>
+    </div>
+
+    <div class="flow">
+      <div class="step ok">Reserva aceptada</div>
+      <div class="arrow"></div>
+      <div class="step dueno">Dueño hace clic en "Pagar"</div>
+      <div class="arrow"></div>
+      <div class="step decision">¿Modo simulación activo?<span class="sub">interruptor de /admin, solo para testing</span></div>
+      <div class="fork">
+        <div class="branch">
+          <div class="fork-label neutral">Sí (testing)</div>
+          <div class="step">Simula el pago<span class="sub">sin ir a Mercado Pago</span></div>
+        </div>
+        <div class="branch">
+          <div class="fork-label neutral">No (real)</div>
+          <div class="step">Checkout Pro de Mercado Pago<span class="sub">el dueño paga en la página de MP, nunca en la nuestra</span></div>
+          <div class="arrow"></div>
+          <div class="step">MP notifica al webhook</div>
+          <div class="arrow"></div>
+          <div class="step">Pimi reconsulta el pago real a la API de MP<span class="sub">nunca confía en el body de la notificación</span></div>
+        </div>
+      </div>
+      <div class="arrow"></div>
+      <div class="step warn">Estado del pago: retenido</div>
+      <div class="arrow"></div>
+      <div class="step">Cuidado se completa<span class="sub">check-in de salida</span></div>
+      <div class="arrow"></div>
+      <div class="step">+48hs de margen para reportar un problema</div>
+      <div class="arrow"></div>
+      <div class="step decision">¿Se reportó un problema?</div>
+      <div class="fork">
+        <div class="branch">
+          <div class="fork-label danger">Sí — disputa</div>
+          <div class="step danger">Estado: reembolsado</div>
+        </div>
+        <div class="branch">
+          <div class="fork-label ok">No</div>
+          <div class="step">Admin libera el pago manualmente<span class="sub">panel /admin</span></div>
+          <div class="arrow"></div>
+          <div class="step ok">Estado: liberado</div>
+          <div class="arrow"></div>
+          <div class="step cuidador">Equipo transfiere al cuidador<span class="sub">fuera de la app — todavía no hay payout automático</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>Generado a partir del código y las migraciones de Supabase del repo Pimi — reflejar cambios acá si el flujo real cambia.</footer>
+</div>
+</body>
+</html>

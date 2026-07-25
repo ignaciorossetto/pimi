@@ -3,11 +3,23 @@ import { UserMenu } from "@/components/dashboard/UserMenu";
 import { getAvatarUrl } from "@/lib/auth/avatar";
 import { getDisplayName } from "@/lib/auth/display-name";
 import { requireUser } from "@/lib/auth/require-user";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function CuidadorLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const user = await requireUser("/cuidador");
+
+  // La foto que el cuidador sube a mano en "Editar perfil" tiene que
+  // pisar la de Google en el header — si no, cambiarla ahí no se
+  // reflejaba nunca arriba (el header solo miraba el avatar de Google).
+  const supabase = await createClient();
+  const { data: caregiverProfile } = await supabase
+    .from("caregiver_profiles")
+    .select("foto")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const fotoUrl = caregiverProfile?.foto || getAvatarUrl(user);
 
   return (
     <div className="min-h-screen">
@@ -25,7 +37,7 @@ export default async function CuidadorLayout({
             name={getDisplayName(user)}
             email={user.email ?? ""}
             homeHref="/cuidador"
-            fotoUrl={getAvatarUrl(user)}
+            fotoUrl={fotoUrl}
           />
         </nav>
       </header>

@@ -2,6 +2,14 @@
 
 import { usePathname } from "next/navigation";
 import { PawIcon } from "@/components/icons";
+import { UserMenu } from "@/components/dashboard/UserMenu";
+
+export type NavbarSesion = {
+  name: string;
+  email: string;
+  fotoUrl: string | null;
+  homeHref: string;
+};
 
 /**
  * Navbar compartido por todo el sitio público. Cuando estás en
@@ -11,10 +19,20 @@ import { PawIcon } from "@/components/icons";
  * flujo de dueño aunque estuvieras leyendo la landing de cuidadores, lo
  * cual era confuso. Acá es donde se decide a qué login/registro mandan
  * esos botones (con o sin ?rol=cuidador).
+ *
+ * "sesion" viene resuelta desde el layout (server) — antes este Navbar
+ * nunca miraba si había una sesión activa, así que un dueño logueado que
+ * entraba a la ficha de un cuidador (u otra página pública) veía el
+ * header como si no hubiese iniciado sesión.
  */
-export function Navbar() {
+export function Navbar({ sesion }: { sesion?: NavbarSesion | null }) {
   const pathname = usePathname();
   const isCuidador = pathname?.startsWith("/para-cuidadores") ?? false;
+  // En la ficha de un cuidador no tiene sentido ofrecer navegar a la
+  // landing ("Cómo funciona"/"Nosotros") — el usuario ya está logueado y
+  // en medio de elegir a quién reservarle, con la sesión iniciada solo
+  // debería ver su nombre.
+  const esFichaCuidador = pathname?.startsWith("/cuidadores/") ?? false;
 
   return (
     <header className="sticky top-0 z-40 border-b border-foreground/10 bg-background/80 backdrop-blur">
@@ -35,30 +53,43 @@ export function Navbar() {
           )}
         </a>
 
-        <div className="hidden items-center gap-8 text-sm font-medium text-foreground/70 md:flex">
-          <a href="#como-funciona" className="transition hover:text-foreground">
-            Cómo funciona
-          </a>
-          <a href="#nosotros" className="transition hover:text-foreground">
-            Nosotros
-          </a>
-        </div>
+        {!esFichaCuidador && (
+          <div className="hidden items-center gap-8 text-sm font-medium text-foreground/70 md:flex">
+            <a href="#como-funciona" className="transition hover:text-foreground">
+              Cómo funciona
+            </a>
+            <a href="#nosotros" className="transition hover:text-foreground">
+              Nosotros
+            </a>
+          </div>
+        )}
 
         <div className="flex items-center gap-1.5 sm:gap-3">
-          <a
-            href={isCuidador ? "/login?rol=cuidador" : "/login"}
-            className="inline-block rounded-lg px-2.5 py-2 text-sm font-semibold text-foreground/80 transition hover:bg-foreground/5 sm:px-4"
-          >
-            Iniciar sesión
-          </a>
-          <a
-            href={isCuidador ? "/registro?rol=cuidador" : "/registro"}
-            className={`rounded-lg px-2.5 py-2 text-sm font-semibold text-white transition sm:px-4 ${
-              isCuidador ? "bg-accent hover:opacity-90" : "bg-brand hover:bg-brand-dark"
-            }`}
-          >
-            Crear cuenta
-          </a>
+          {sesion ? (
+            <UserMenu
+              name={sesion.name}
+              email={sesion.email}
+              homeHref={sesion.homeHref}
+              fotoUrl={sesion.fotoUrl}
+            />
+          ) : (
+            <>
+              <a
+                href={isCuidador ? "/login?rol=cuidador" : "/login"}
+                className="inline-block rounded-lg px-2.5 py-2 text-sm font-semibold text-foreground/80 transition hover:bg-foreground/5 sm:px-4"
+              >
+                Iniciar sesión
+              </a>
+              <a
+                href={isCuidador ? "/registro?rol=cuidador" : "/registro"}
+                className={`rounded-lg px-2.5 py-2 text-sm font-semibold text-white transition sm:px-4 ${
+                  isCuidador ? "bg-accent hover:opacity-90" : "bg-brand hover:bg-brand-dark"
+                }`}
+              >
+                Crear cuenta
+              </a>
+            </>
+          )}
         </div>
       </nav>
     </header>

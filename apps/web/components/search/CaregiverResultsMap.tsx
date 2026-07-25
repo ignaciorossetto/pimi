@@ -28,11 +28,21 @@ export function CaregiverResultsMap({
   centerLat,
   centerLng,
   radioKm,
+  zoom,
+  mostrarPinCentro = true,
 }: {
   results: ResultadoMapa[];
   centerLat?: number | null;
   centerLng?: number | null;
   radioKm?: number | null;
+  zoom?: number;
+  // false en la ficha individual de un cuidador: ahí centerLat/centerLng
+  // solo sirven para centrar el mapa en su zona, no representan "tu
+  // ubicación de búsqueda" — si se dibuja igual el pin azul, ese punto
+  // queda duplicado con el círculo del cuidador (mismo lat/lng), bounds
+  // termina con 2 puntos idénticos y fitBounds fuerza un zoom máximo
+  // ignorando por completo el prop "zoom".
+  mostrarPinCentro?: boolean;
 }) {
   const mapDivRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMapType | null>(null);
@@ -65,7 +75,7 @@ export function CaregiverResultsMap({
 
       const map = L.map(mapDivRef.current).setView(
         centro,
-        centerLat != null ? 13 : 12,
+        zoom ?? (centerLat != null ? 13 : 12),
       );
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap",
@@ -74,7 +84,7 @@ export function CaregiverResultsMap({
 
       const bounds: [number, number][] = [];
 
-      if (centerLat != null && centerLng != null) {
+      if (centerLat != null && centerLng != null && mostrarPinCentro) {
         L.marker(centro).addTo(map).bindPopup("Tu ubicación de búsqueda");
         bounds.push(centro);
         if (radioKm) {
@@ -117,7 +127,7 @@ export function CaregiverResultsMap({
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [results, centerLat, centerLng, radioKm]);
+  }, [results, centerLat, centerLng, radioKm, zoom, mostrarPinCentro]);
 
   return (
     <div
