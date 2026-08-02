@@ -5,6 +5,7 @@ const NAV_LINKS = [
   { href: "/admin/cuidadores", label: "Cuidadores" },
   { href: "/admin/duenos", label: "Dueños" },
   { href: "/admin/mapa", label: "Mapa" },
+  { href: "/admin/liquidaciones", label: "Liquidaciones" },
 ];
 
 /**

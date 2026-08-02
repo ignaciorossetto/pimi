@@ -55,6 +55,8 @@ type CaregiverProfile = {
   tamanos_aceptados?: string[] | null;
   especies_aceptadas?: string[] | null;
   etapas_aceptadas?: string[] | null;
+  cbu_alias?: string | null;
+  titular_cuenta?: string | null;
 };
 
 const TIPO_VIVIENDA_LABEL: Record<string, string> = {
@@ -233,6 +235,8 @@ export function EditCaregiverProfileForm({
         tamanos_aceptados: tamanosAceptados,
         especies_aceptadas: especiesAceptadas,
         etapas_aceptadas: etapasAceptadas,
+        cbu_alias: String(formData.get("cbu_alias") ?? "").trim() || null,
+        titular_cuenta: String(formData.get("titular_cuenta") ?? "").trim() || null,
         ...domicilioFields,
       })
       .eq("user_id", user.id);
@@ -447,6 +451,38 @@ export function EditCaregiverProfileForm({
           defaultValue={profile.bio ?? ""}
           className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
         />
+      </div>
+
+      <div>
+        <p className="text-sm font-semibold">Datos bancarios</p>
+        <p className="text-xs text-foreground/50">
+          Así te transferimos tu parte de cada cuidado — sin esto el
+          equipo no tiene forma de pagarte adentro de la app.
+        </p>
+        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="text-sm font-medium" htmlFor="titular_cuenta">
+              Titular de la cuenta
+            </label>
+            <input
+              id="titular_cuenta"
+              name="titular_cuenta"
+              defaultValue={profile.titular_cuenta ?? ""}
+              className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium" htmlFor="cbu_alias">
+              CBU o alias
+            </label>
+            <input
+              id="cbu_alias"
+              name="cbu_alias"
+              defaultValue={profile.cbu_alias ?? ""}
+              className="mt-1 w-full rounded-lg border border-foreground/20 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+            />
+          </div>
+        </div>
       </div>
 
       <div>

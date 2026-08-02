@@ -1,4 +1,5 @@
 import { PawIcon } from "@/components/icons";
+import { CuidadorNav } from "@/components/dashboard/CuidadorNav";
 import { UserMenu } from "@/components/dashboard/UserMenu";
 import { getAvatarUrl } from "@/lib/auth/avatar";
 import { getDisplayName } from "@/lib/auth/display-name";
@@ -40,6 +41,7 @@ export default async function CuidadorLayout({
             fotoUrl={fotoUrl}
           />
         </nav>
+        <CuidadorNav />
       </header>
       <div className="mx-auto max-w-5xl px-6 py-10">{children}</div>
     </div>

@@ -30,6 +30,8 @@ type CaregiverProfile = {
   tamanos_aceptados?: string[] | null;
   especies_aceptadas?: string[] | null;
   etapas_aceptadas?: string[] | null;
+  cbu_alias?: string | null;
+  titular_cuenta?: string | null;
 };
 
 const TAMANO_LABEL: Record<string, string> = {

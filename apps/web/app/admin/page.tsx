@@ -28,6 +28,8 @@ export default async function AdminHomePage() {
     { data: flaggedList },
     { data: pagosRetenidos },
     { data: simulacionSetting },
+    { data: pagosLiberados },
+    { data: itemsLiquidados },
   ] = await Promise.all([
     supabase.from("profiles").select("*", { count: "exact", head: true }),
     supabase
@@ -95,6 +97,11 @@ export default async function AdminHomePage() {
       .select("value")
       .eq("key", "payments_simulation_mode")
       .maybeSingle(),
+    // Para la card "Pendiente de liquidar" — el detalle completo (por
+    // cuidador, con historial) vive en /admin/liquidaciones, acá solo se
+    // suma el total para no duplicar esa página entera.
+    supabase.from("payments").select("id, monto, comision_pimi").eq("estado", "liberado"),
+    supabase.from("liquidacion_items").select("payment_id"),
   ]);
 
   const ahora = new Date();
@@ -102,6 +109,10 @@ export default async function AdminHomePage() {
     (sum, p) => sum + Number(p.monto),
     0,
   );
+  const idsYaLiquidados = new Set((itemsLiquidados ?? []).map((i) => i.payment_id));
+  const totalPendienteLiquidar = (pagosLiberados ?? [])
+    .filter((p) => !idsYaLiquidados.has(p.id))
+    .reduce((sum, p) => sum + (Number(p.monto) - Number(p.comision_pimi)), 0);
 
   const metrics: { label: string; value: number | string; href?: string }[] = [
     { label: "Usuarios totales", value: usersCount ?? 0 },
@@ -112,6 +123,11 @@ export default async function AdminHomePage() {
     { label: "Cambios de domicilio pendientes", value: pendingAddressChanges ?? 0 },
     { label: "Reservas activas", value: activeBookings ?? 0 },
     { label: "Plata retenida", value: `$${totalRetenido}` },
+    {
+      label: "Pendiente de liquidar",
+      value: `$${totalPendienteLiquidar.toFixed(0)}`,
+      href: "/admin/liquidaciones",
+    },
     { label: "Mensajes marcados", value: flaggedCount ?? 0 },
     { label: "Eventos registrados", value: eventsCount ?? 0 },
   ];
