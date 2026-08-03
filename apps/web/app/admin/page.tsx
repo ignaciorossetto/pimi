@@ -30,6 +30,7 @@ export default async function AdminHomePage() {
     { data: simulacionSetting },
     { data: pagosLiberados },
     { data: itemsLiquidados },
+    { data: reservasSinCheckin },
   ] = await Promise.all([
     supabase.from("profiles").select("*", { count: "exact", head: true }),
     supabase
@@ -102,6 +103,19 @@ export default async function AdminHomePage() {
     // suma el total para no duplicar esa página entera.
     supabase.from("payments").select("id, monto, comision_pimi").eq("estado", "liberado"),
     supabase.from("liquidacion_items").select("payment_id"),
+    // Reservas que se quedaron pegadas: el check-in (migración 0010) es lo
+    // único que mueve el estado 'aceptado' -> 'en_curso' -> 'completado' —
+    // si el cuidador nunca lo hace, la reserva queda ahí para siempre aunque
+    // las fechas ya hayan pasado. Como el trigger es la única forma de
+    // avanzar de estado, "sigue en aceptado/en_curso con fecha_fin vencida"
+    // ya alcanza para saber que falta un check-in, sin tener que cruzar con
+    // booking_checkins.
+    supabase
+      .from("bookings")
+      .select("id, owner_id, caregiver_id, pet_id, fecha_inicio, fecha_fin, estado")
+      .in("estado", ["aceptado", "en_curso"])
+      .lt("fecha_fin", new Date().toISOString().slice(0, 10))
+      .order("fecha_fin", { ascending: true }),
   ]);
 
   const ahora = new Date();
@@ -122,6 +136,10 @@ export default async function AdminHomePage() {
     { label: "Verificaciones pendientes", value: pendingVerifications ?? 0 },
     { label: "Cambios de domicilio pendientes", value: pendingAddressChanges ?? 0 },
     { label: "Reservas activas", value: activeBookings ?? 0 },
+    {
+      label: "Reservas sin check-in vencidas",
+      value: reservasSinCheckin?.length ?? 0,
+    },
     { label: "Plata retenida", value: `$${totalRetenido}` },
     {
       label: "Pendiente de liquidar",
@@ -144,12 +162,26 @@ export default async function AdminHomePage() {
         .in("id", bookingIds)
     : { data: [] as { id: string; caregiver_id: string; pet_id: string; fecha_fin: string }[] };
 
-  const caregiverIds = [...new Set((bookingsInfo ?? []).map((b) => b.caregiver_id))];
-  const petIds = [...new Set((bookingsInfo ?? []).map((b) => b.pet_id))];
+  const caregiverIds = [
+    ...new Set([
+      ...(bookingsInfo ?? []).map((b) => b.caregiver_id),
+      ...(reservasSinCheckin ?? []).map((b) => b.caregiver_id),
+    ]),
+  ];
+  const ownerIds = [...new Set((reservasSinCheckin ?? []).map((b) => b.owner_id))];
+  const petIds = [
+    ...new Set([
+      ...(bookingsInfo ?? []).map((b) => b.pet_id),
+      ...(reservasSinCheckin ?? []).map((b) => b.pet_id),
+    ]),
+  ];
 
-  const [{ data: caregivers }, { data: pets }] = await Promise.all([
+  const [{ data: caregivers }, { data: owners }, { data: pets }] = await Promise.all([
     caregiverIds.length
       ? supabase.from("profiles").select("id, nombre, email").in("id", caregiverIds)
+      : Promise.resolve({ data: [] as { id: string; nombre: string | null; email: string }[] }),
+    ownerIds.length
+      ? supabase.from("profiles").select("id, nombre, email").in("id", ownerIds)
       : Promise.resolve({ data: [] as { id: string; nombre: string | null; email: string }[] }),
     petIds.length
       ? supabase.from("pets").select("id, nombre").in("id", petIds)
@@ -158,7 +190,14 @@ export default async function AdminHomePage() {
 
   const bookingMap = new Map((bookingsInfo ?? []).map((b) => [b.id, b]));
   const caregiverMap = new Map((caregivers ?? []).map((c) => [c.id, c.nombre || c.email]));
+  const ownerMap = new Map((owners ?? []).map((o) => [o.id, o.nombre || o.email]));
   const petMap = new Map((pets ?? []).map((p) => [p.id, p.nombre]));
+
+  const diasAtraso = (fechaFin: string) =>
+    Math.max(
+      0,
+      Math.floor((ahora.getTime() - new Date(`${fechaFin}T00:00:00Z`).getTime()) / 86400000),
+    );
 
   async function signedUrl(path: string | null): Promise<string | null> {
     if (!path) return null;
@@ -214,6 +253,69 @@ export default async function AdminHomePage() {
           ),
         )}
       </div>
+
+      {reservasSinCheckin && reservasSinCheckin.length > 0 && (
+        <div className="mt-10 rounded-2xl border border-red-300 bg-red-50 p-5">
+          <h2 className="text-lg font-semibold text-red-700">
+            ⚠ Reservas sin check-in vencidas
+          </h2>
+          <p className="mt-1 text-xs text-red-700/70">
+            El check-in (foto + ubicación) es lo único que mueve el estado
+            de la reserva — si el cuidador nunca lo carga, se queda pegada
+            para siempre aunque las fechas ya hayan pasado. Revisar con el
+            cuidador: puede cargar el check-in retroactivo (llegada y/o
+            salida) y así se pone al día solo.
+          </p>
+          <div className="mt-3 overflow-hidden rounded-xl border border-red-200 bg-white">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-red-100/60 text-red-700">
+                <tr>
+                  <th className="px-4 py-2">Cuidador</th>
+                  <th className="px-4 py-2">Dueño</th>
+                  <th className="px-4 py-2">Mascota</th>
+                  <th className="px-4 py-2">Fechas</th>
+                  <th className="px-4 py-2">Falta</th>
+                  <th className="px-4 py-2">Atraso</th>
+                  <th className="px-4 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {reservasSinCheckin.map((b) => (
+                  <tr key={b.id} className="border-t border-red-100">
+                    <td className="px-4 py-2">
+                      {caregiverMap.get(b.caregiver_id) ?? "—"}
+                    </td>
+                    <td className="px-4 py-2">{ownerMap.get(b.owner_id) ?? "—"}</td>
+                    <td className="px-4 py-2">{petMap.get(b.pet_id) ?? "—"}</td>
+                    <td className="px-4 py-2 text-background/70">
+                      {b.fecha_inicio} → {b.fecha_fin}
+                    </td>
+                    <td className="px-4 py-2">
+                      <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
+                        {b.estado === "aceptado"
+                          ? "Check-in de llegada"
+                          : "Check-in de salida"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 font-medium text-red-700">
+                      {diasAtraso(b.fecha_fin)} día
+                      {diasAtraso(b.fecha_fin) === 1 ? "" : "s"}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <a
+                        href={`/reservas/${b.id}`}
+                        className="text-brand hover:underline"
+                      >
+                        Ver reserva
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="mt-10">
         <h2 className="text-lg font-semibold">Herramientas de desarrollo</h2>
