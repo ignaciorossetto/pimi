@@ -81,6 +81,15 @@ export default async function CaregiverProfilePage({
     pets = data ?? [];
   }
 
+  // Analítica (A7): vistas de perfil — el paso del funnel entre la
+  // búsqueda y la solicitud. user_id null si lo ve alguien sin sesión
+  // (la página es pública); best-effort, no rompe el render si falla.
+  await supabase.from("events").insert({
+    user_id: user?.id ?? null,
+    tipo_evento: "perfil_cuidador_visto",
+    metadata: { caregiver_id: caregiver.id },
+  });
+
   const hasReviews = Boolean(caregiver.reviews_count && caregiver.reviews_count > 0);
 
   return (

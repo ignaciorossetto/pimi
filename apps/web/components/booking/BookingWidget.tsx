@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { pingNotificacionBooking } from "@/lib/notifications/ping";
 
 type Pet = { id: string; nombre: string };
 
@@ -82,14 +83,18 @@ export function BookingWidget({
       return;
     }
 
-    const { error: insertError } = await supabase.from("bookings").insert({
-      owner_id: user.id,
-      caregiver_id: caregiverId,
-      pet_id: petId,
-      fecha_inicio: fechaInicio,
-      fecha_fin: fechaFin,
-      monto: nightsBetween(fechaInicio, fechaFin) * tarifaBase,
-    });
+    const { data: nuevaReserva, error: insertError } = await supabase
+      .from("bookings")
+      .insert({
+        owner_id: user.id,
+        caregiver_id: caregiverId,
+        pet_id: petId,
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
+        monto: nightsBetween(fechaInicio, fechaFin) * tarifaBase,
+      })
+      .select("id")
+      .single();
 
     if (insertError) {
       setError(
@@ -100,6 +105,11 @@ export function BookingWidget({
       );
       setLoading(false);
       return;
+    }
+
+    // Email "te llegó una solicitud" al cuidador (fire-and-forget).
+    if (nuevaReserva?.id) {
+      pingNotificacionBooking(nuevaReserva.id, "solicitud_nueva");
     }
 
     router.push("/reservas");

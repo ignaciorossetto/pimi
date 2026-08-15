@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { pingNotificacionBooking } from "@/lib/notifications/ping";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -143,6 +144,12 @@ export function CheckinForm({
       setError("No pudimos guardar el check-in. Probá de nuevo.");
       setLoading(false);
       return;
+    }
+
+    // Email al dueño en llegada y salida (los diarios no — ya recibe la
+    // foto en el seguimiento y sería spam un email por día).
+    if (tipo === "llegada" || tipo === "salida") {
+      pingNotificacionBooking(bookingId, `checkin_${tipo}`);
     }
 
     setLoading(false);

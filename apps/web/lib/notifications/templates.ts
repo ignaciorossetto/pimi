@@ -62,3 +62,35 @@ export function recordatorioCuidadoEmail({
 
   return { subject, html };
 }
+
+// ============================================================
+// Emails de eventos (solicitud, pago, check-ins, disputa, liquidación)
+// — mismo look & feel que el recordatorio de arriba.
+// ============================================================
+
+export function eventoEmail({
+  nombreDestinatario,
+  titulo,
+  cuerpo,
+  ctaUrl,
+  ctaLabel,
+}: {
+  nombreDestinatario: string;
+  titulo: string;
+  cuerpo: string;
+  ctaUrl: string;
+  ctaLabel: string;
+}) {
+  const html = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #1a1a1a;">
+  <p style="font-size: 13px; color: #ff7a45; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; margin: 0 0 12px;">Pimi</p>
+  <h1 style="font-size: 20px; margin: 0 0 16px; line-height: 1.3;">Hola, ${nombreDestinatario} 👋</h1>
+  <p style="font-size: 15px; line-height: 1.6; margin: 0 0 20px;">${cuerpo}</p>
+  <a href="${ctaUrl}" style="display: inline-block; background: #ff7a45; color: #ffffff; text-decoration: none; padding: 12px 22px; border-radius: 8px; font-weight: 600; font-size: 14px;">${ctaLabel}</a>
+  <p style="margin-top: 24px; font-size: 11px; color: #aaaaaa;">Te llega este email por la actividad de tu cuenta en Pimi.</p>
+</div>`.trim();
+
+  return { subject: titulo, html };
+}
+
+export { formatFechaAR };

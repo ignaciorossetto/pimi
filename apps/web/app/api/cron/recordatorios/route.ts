@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendEmail } from "@/lib/notifications/email";
-import { recordatorioCuidadoEmail } from "@/lib/notifications/templates";
+import { eventoEmail, recordatorioCuidadoEmail } from "@/lib/notifications/templates";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -45,6 +45,23 @@ export async function GET(request: NextRequest) {
 
   let enviados = 0;
   let evaluados = 0;
+
+  // ============================================================
+  // Paso 0: vencer solicitudes viejas. Una solicitud 'solicitado' cuya
+  // fecha de inicio ya pasó no tiene ningún futuro posible (el cuidador
+  // nunca respondió) — sin esto quedaban vivas para siempre ensuciando
+  // los paneles de dueño y cuidador (auditoría, punto A4). El motivo
+  // propio permite mostrarle al dueño un mensaje claro, distinto del
+  // rechazo explícito y del 'otro_cuidador_elegido' de la migración 0024.
+  // ============================================================
+  const hoy = fechaISOEnNDias(0);
+  const { data: vencidas } = await admin
+    .from("bookings")
+    .update({ estado: "cancelado", motivo_cancelacion: "vencida_sin_respuesta" })
+    .eq("estado", "solicitado")
+    .lt("fecha_inicio", hoy)
+    .select("id");
+  const solicitudesVencidas = vencidas?.length ?? 0;
 
   for (const dias of DIAS_RECORDATORIO) {
     const fechaObjetivo = fechaISOEnNDias(dias);
@@ -157,5 +174,91 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, evaluados, enviados });
+  // ============================================================
+  // Paso final: resumen diario de pendientes para el equipo admin
+  // (auditoría, punto A8). Solo se manda si HAY algo pendiente — un
+  // email diario de "todo en cero" entrena a ignorar la casilla. Los
+  // destinatarios se buscan por app_metadata.role === 'admin' (la misma
+  // fuente de verdad que usa /admin), nada hardcodeado.
+  // ============================================================
+  let resumenEnviado = false;
+  const [
+    { count: verificacionesPendientes },
+    { count: cambiosDomicilio },
+    { count: disputasAbiertas },
+    { count: sinCheckin },
+    { data: liberados },
+    { data: yaLiquidados },
+  ] = await Promise.all([
+    admin
+      .from("identity_verifications")
+      .select("*", { count: "exact", head: true })
+      .eq("estado", "pendiente"),
+    admin
+      .from("caregiver_address_change_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("estado", "pendiente"),
+    admin
+      .from("booking_disputas")
+      .select("*", { count: "exact", head: true })
+      .eq("estado", "abierta"),
+    admin
+      .from("bookings")
+      .select("*", { count: "exact", head: true })
+      .in("estado", ["aceptado", "en_curso"])
+      .lt("fecha_fin", hoy),
+    admin.from("payments").select("id, monto, comision_pimi").eq("estado", "liberado"),
+    admin.from("liquidacion_items").select("payment_id"),
+  ]);
+
+  const liquidadosSet = new Set((yaLiquidados ?? []).map((i) => i.payment_id));
+  const pendienteLiquidar = (liberados ?? [])
+    .filter((p) => !liquidadosSet.has(p.id))
+    .reduce((sum, p) => sum + (Number(p.monto) - Number(p.comision_pimi)), 0);
+
+  const items = [
+    { label: "Verificaciones de identidad", valor: verificacionesPendientes ?? 0 },
+    { label: "Cambios de domicilio", valor: cambiosDomicilio ?? 0 },
+    { label: "Disputas abiertas", valor: disputasAbiertas ?? 0 },
+    { label: "Reservas sin check-in vencidas", valor: sinCheckin ?? 0 },
+    {
+      label: "Pendiente de liquidar",
+      valor: pendienteLiquidar > 0 ? `$${pendienteLiquidar.toFixed(0)}` : 0,
+    },
+  ].filter((i) => i.valor !== 0);
+
+  if (items.length > 0) {
+    const { data: usersData } = await admin.auth.admin.listUsers();
+    const adminEmails = (usersData?.users ?? [])
+      .filter(
+        (u) => (u.app_metadata as { role?: string } | null)?.role === "admin",
+      )
+      .map((u) => u.email)
+      .filter((e): e is string => Boolean(e));
+
+    if (adminEmails.length > 0) {
+      const lista = items
+        .map((i) => `• ${i.label}: <strong>${i.valor}</strong>`)
+        .join("<br/>");
+      const { subject, html } = eventoEmail({
+        nombreDestinatario: "equipo",
+        titulo: `Pimi admin: ${items.length} tema${items.length === 1 ? "" : "s"} esperando revisión`,
+        cuerpo: `Esto está pendiente en el panel hoy:<br/><br/>${lista}`,
+        ctaUrl: `${siteUrl}/admin`,
+        ctaLabel: "Abrir el panel",
+      });
+      for (const email of adminEmails) {
+        const result = await sendEmail({ to: email, subject, html });
+        if (result.sent) resumenEnviado = true;
+      }
+    }
+  }
+
+  return NextResponse.json({
+    ok: true,
+    evaluados,
+    enviados,
+    solicitudesVencidas,
+    resumenEnviado,
+  });
 }

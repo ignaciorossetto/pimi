@@ -69,7 +69,16 @@ export function RegisterForm({ isCaregiver }: { isCaregiver: boolean }) {
     }
 
     const roles = [isCaregiver ? "cuidador" : "dueño"];
-    const metadata: Record<string, unknown> = { nombre, telefono, roles };
+    // tyc_aceptado: el checkbox es required así que siempre llega marcado —
+    // el trigger handle_new_user (migración 0034) lo convierte en el
+    // timestamp profiles.tyc_aceptados_at, que es la constancia de CUÁNDO
+    // aceptó los términos este usuario.
+    const metadata: Record<string, unknown> = {
+      nombre,
+      telefono,
+      roles,
+      tyc_aceptado: "true",
+    };
 
     // Zona y tarifa ya NO se piden acá: zona se completa sola con el
     // domicilio de la verificación de identidad, y la tarifa se carga
@@ -222,7 +231,27 @@ export function RegisterForm({ isCaregiver }: { isCaregiver: boolean }) {
             isCaregiver ? "text-accent focus:ring-accent" : "text-brand focus:ring-brand"
           }`}
         />
-        Acepto los Términos y la Política de Privacidad de Pimi.
+        <span>
+          Acepto los{" "}
+          <a
+            href="/terminos"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-brand hover:underline"
+          >
+            Términos y Condiciones
+          </a>{" "}
+          y la{" "}
+          <a
+            href="/privacidad"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-brand hover:underline"
+          >
+            Política de Privacidad
+          </a>{" "}
+          de Pimi.
+        </span>
       </label>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

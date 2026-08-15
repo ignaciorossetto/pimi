@@ -5,6 +5,7 @@ import { SimulacionPagosToggle } from "@/components/admin/SimulacionPagosToggle"
 import { VerificationReviewActions } from "@/components/admin/VerificationReviewActions";
 import { AddressChangeReviewActions } from "@/components/admin/AddressChangeReviewActions";
 import { ResetDevDataButton } from "@/components/admin/ResetDevDataButton";
+import { DisputaResolverActions } from "@/components/admin/DisputaResolverActions";
 
 const SIGNED_URL_EXPIRES = 60 * 10; // 10 minutos, alcanza para revisar
 
@@ -31,6 +32,7 @@ export default async function AdminHomePage() {
     { data: pagosLiberados },
     { data: itemsLiquidados },
     { data: reservasSinCheckin },
+    { data: disputasAbiertas },
   ] = await Promise.all([
     supabase.from("profiles").select("*", { count: "exact", head: true }),
     supabase
@@ -116,6 +118,11 @@ export default async function AdminHomePage() {
       .in("estado", ["aceptado", "en_curso"])
       .lt("fecha_fin", new Date().toISOString().slice(0, 10))
       .order("fecha_fin", { ascending: true }),
+    supabase
+      .from("booking_disputas")
+      .select("id, booking_id, motivo, created_at")
+      .eq("estado", "abierta")
+      .order("created_at", { ascending: true }),
   ]);
 
   const ahora = new Date();
@@ -140,6 +147,7 @@ export default async function AdminHomePage() {
       label: "Reservas sin check-in vencidas",
       value: reservasSinCheckin?.length ?? 0,
     },
+    { label: "Disputas abiertas", value: disputasAbiertas?.length ?? 0 },
     { label: "Plata retenida", value: `$${totalRetenido}` },
     {
       label: "Pendiente de liquidar",
@@ -154,13 +162,26 @@ export default async function AdminHomePage() {
     (simulacionSetting?.value as { enabled?: boolean } | null)?.enabled,
   );
 
-  const bookingIds = [...new Set((pagosRetenidos ?? []).map((p) => p.booking_id))];
+  const bookingIds = [
+    ...new Set([
+      ...(pagosRetenidos ?? []).map((p) => p.booking_id),
+      ...(disputasAbiertas ?? []).map((d) => d.booking_id),
+    ]),
+  ];
   const { data: bookingsInfo } = bookingIds.length
     ? await supabase
         .from("bookings")
-        .select("id, caregiver_id, pet_id, fecha_fin")
+        .select("id, owner_id, caregiver_id, pet_id, fecha_fin")
         .in("id", bookingIds)
-    : { data: [] as { id: string; caregiver_id: string; pet_id: string; fecha_fin: string }[] };
+    : {
+        data: [] as {
+          id: string;
+          owner_id: string;
+          caregiver_id: string;
+          pet_id: string;
+          fecha_fin: string;
+        }[],
+      };
 
   const caregiverIds = [
     ...new Set([
@@ -168,7 +189,12 @@ export default async function AdminHomePage() {
       ...(reservasSinCheckin ?? []).map((b) => b.caregiver_id),
     ]),
   ];
-  const ownerIds = [...new Set((reservasSinCheckin ?? []).map((b) => b.owner_id))];
+  const ownerIds = [
+    ...new Set([
+      ...(bookingsInfo ?? []).map((b) => b.owner_id),
+      ...(reservasSinCheckin ?? []).map((b) => b.owner_id),
+    ]),
+  ];
   const petIds = [
     ...new Set([
       ...(bookingsInfo ?? []).map((b) => b.pet_id),
@@ -254,6 +280,67 @@ export default async function AdminHomePage() {
         )}
       </div>
 
+      {disputasAbiertas && disputasAbiertas.length > 0 && (
+        <div className="mt-10 rounded-2xl border border-red-300 bg-red-50 p-5">
+          <h2 className="text-lg font-semibold text-red-700">
+            ⚠ Disputas abiertas
+          </h2>
+          <p className="mt-1 text-xs text-red-700/70">
+            Un dueño reportó un problema y el pago quedó congelado.
+            Contactar a las dos partes por email antes de decidir.
+            "Reembolsar" registra la devolución en Pimi (la plata real por
+            Mercado Pago se devuelve a mano en v1); "Liberar" cierra la
+            disputa a favor del cuidador y el pago sigue el circuito normal.
+          </p>
+          {/* Tabla con fondo blanco dentro del panel oscuro: hay que fijar
+              text-foreground acá, si no las celdas heredan el texto claro
+              del layout admin y quedan invisibles sobre blanco. */}
+          <div className="mt-3 overflow-hidden rounded-xl border border-red-200 bg-white text-foreground">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-red-100/60 text-red-700">
+                <tr>
+                  <th className="px-4 py-2">Dueño</th>
+                  <th className="px-4 py-2">Cuidador</th>
+                  <th className="px-4 py-2">Mascota</th>
+                  <th className="px-4 py-2">Motivo</th>
+                  <th className="px-4 py-2">Reportada</th>
+                  <th className="px-4 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {disputasAbiertas.map((d) => {
+                  const booking = bookingMap.get(d.booking_id);
+                  return (
+                    <tr key={d.id} className="border-t border-red-100 align-top">
+                      <td className="px-4 py-2">
+                        {booking ? ownerMap.get(booking.owner_id) ?? "—" : "—"}
+                      </td>
+                      <td className="px-4 py-2">
+                        {booking
+                          ? caregiverMap.get(booking.caregiver_id) ?? "—"
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-2">
+                        {booking ? petMap.get(booking.pet_id) ?? "—" : "—"}
+                      </td>
+                      <td className="max-w-xs px-4 py-2 text-foreground/70">
+                        {d.motivo}
+                      </td>
+                      <td className="px-4 py-2">
+                        {new Date(d.created_at).toLocaleDateString("es-AR")}
+                      </td>
+                      <td className="px-4 py-2">
+                        <DisputaResolverActions disputaId={d.id} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {reservasSinCheckin && reservasSinCheckin.length > 0 && (
         <div className="mt-10 rounded-2xl border border-red-300 bg-red-50 p-5">
           <h2 className="text-lg font-semibold text-red-700">
@@ -266,7 +353,9 @@ export default async function AdminHomePage() {
             cuidador: puede cargar el check-in retroactivo (llegada y/o
             salida) y así se pone al día solo.
           </p>
-          <div className="mt-3 overflow-hidden rounded-xl border border-red-200 bg-white">
+          {/* Mismo detalle que la tabla de disputas: fondo blanco dentro
+              del layout oscuro necesita text-foreground explícito. */}
+          <div className="mt-3 overflow-hidden rounded-xl border border-red-200 bg-white text-foreground">
             <table className="w-full text-left text-sm">
               <thead className="bg-red-100/60 text-red-700">
                 <tr>
@@ -287,7 +376,7 @@ export default async function AdminHomePage() {
                     </td>
                     <td className="px-4 py-2">{ownerMap.get(b.owner_id) ?? "—"}</td>
                     <td className="px-4 py-2">{petMap.get(b.pet_id) ?? "—"}</td>
-                    <td className="px-4 py-2 text-background/70">
+                    <td className="px-4 py-2 text-foreground/70">
                       {b.fecha_inicio} → {b.fecha_fin}
                     </td>
                     <td className="px-4 py-2">

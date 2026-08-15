@@ -2,8 +2,7 @@
   "name": "pimi",
   "private": true,
   "workspaces": [
-    "apps/*",
-    "packages/*"
+    "apps/*"
   ],
   "scripts": {
     "dev": "npm run dev -w apps/web",

@@ -1,3 +1,4 @@
+import { StarIcon } from "@/components/icons";
 import { ESTADO_COLOR, ESTADO_LABEL } from "@/lib/bookings/labels";
 import { requireUser } from "@/lib/auth/require-user";
 import { createClient } from "@/lib/supabase/server";
@@ -21,13 +22,25 @@ function faltanLabel(dias: number): string | null {
   return `Faltan ${dias} días`;
 }
 
+const MOTIVO_LABEL: Record<string, string> = {
+  otro_cuidador_elegido: "Elegiste otro cuidador",
+  vencida_sin_respuesta: "Venció sin respuesta",
+  disputa_reembolsada: "Disputa — reembolsada",
+};
+
+// Estados "vivos": todavía puede pasar algo (responder, pagar, cuidar,
+// resolver). El resto es historia.
+const ESTADOS_ACTIVOS = ["solicitado", "aceptado", "en_curso", "disputado"];
+
 export default async function BookingsPage() {
   const user = await requireUser("/reservas");
   const supabase = await createClient();
 
   const { data: bookings } = await supabase
     .from("bookings")
-    .select("id, caregiver_id, pet_id, fecha_inicio, fecha_fin, estado, monto")
+    .select(
+      "id, caregiver_id, pet_id, fecha_inicio, fecha_fin, estado, monto, motivo_cancelacion",
+    )
     .eq("owner_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -37,41 +50,78 @@ export default async function BookingsPage() {
   ];
   const petIds = [...new Set((bookings ?? []).map((b) => b.pet_id))];
 
-  const [{ data: caregivers }, { data: pets }, { data: payments }] =
-    await Promise.all([
-      caregiverIds.length
-        ? supabase
-            .from("caregiver_public_profiles")
-            .select("id, nombre")
-            .in("id", caregiverIds)
-        : Promise.resolve({ data: [] as { id: string; nombre: string | null }[] }),
-      petIds.length
-        ? supabase.from("pets").select("id, nombre").in("id", petIds)
-        : Promise.resolve({ data: [] as { id: string; nombre: string }[] }),
-      bookingIds.length
-        ? supabase
-            .from("payments")
-            .select("booking_id, estado")
-            .in("booking_id", bookingIds)
-        : Promise.resolve({ data: [] as { booking_id: string; estado: string }[] }),
-    ]);
+  const [
+    { data: caregivers },
+    { data: pets },
+    { data: payments },
+    { data: misReviews },
+    { data: reviewsRecibidas },
+  ] = await Promise.all([
+    caregiverIds.length
+      ? supabase
+          .from("caregiver_public_profiles")
+          .select("id, nombre")
+          .in("id", caregiverIds)
+      : Promise.resolve({ data: [] as { id: string; nombre: string | null }[] }),
+    petIds.length
+      ? supabase.from("pets").select("id, nombre").in("id", petIds)
+      : Promise.resolve({ data: [] as { id: string; nombre: string }[] }),
+    bookingIds.length
+      ? supabase
+          .from("payments")
+          .select("booking_id, estado")
+          .in("booking_id", bookingIds)
+      : Promise.resolve({ data: [] as { booking_id: string; estado: string }[] }),
+    // Las reseñas que YO dejé en estos cuidados.
+    bookingIds.length
+      ? supabase
+          .from("reviews")
+          .select("booking_id, puntaje")
+          .eq("autor_id", user.id)
+          .in("booking_id", bookingIds)
+      : Promise.resolve({ data: [] as { booking_id: string; puntaje: number }[] }),
+    // Las que me dejaron a mí (solo las ya reveladas — doble ciego, 0025).
+    bookingIds.length
+      ? supabase
+          .from("reviews_publicas")
+          .select("booking_id, puntaje")
+          .eq("destinatario_id", user.id)
+          .in("booking_id", bookingIds)
+      : Promise.resolve({ data: [] as { booking_id: string; puntaje: number }[] }),
+  ]);
 
   const caregiverMap = new Map(
     (caregivers ?? []).map((c) => [c.id, c.nombre]),
   );
   const petMap = new Map((pets ?? []).map((p) => [p.id, p.nombre]));
   const paymentMap = new Map((payments ?? []).map((p) => [p.booking_id, p.estado]));
+  const miReviewMap = new Map(
+    (misReviews ?? []).map((r) => [r.booking_id, r.puntaje]),
+  );
+  const suReviewMap = new Map(
+    (reviewsRecibidas ?? []).map((r) => [r.booking_id, r.puntaje]),
+  );
 
   const confirmadaYPagada = (bookingId: string, estado: string) =>
     (estado === "aceptado" || estado === "en_curso") &&
     (paymentMap.get(bookingId) === "retenido" ||
       paymentMap.get(bookingId) === "liberado");
 
-  const sorted = [...(bookings ?? [])].sort((a, b) => {
+  const activas = (bookings ?? []).filter((b) =>
+    ESTADOS_ACTIVOS.includes(b.estado),
+  );
+  const historial = (bookings ?? []).filter(
+    (b) => !ESTADOS_ACTIVOS.includes(b.estado),
+  );
+
+  const sortedActivas = [...activas].sort((a, b) => {
     const aTop = confirmadaYPagada(a.id, a.estado) ? 1 : 0;
     const bTop = confirmadaYPagada(b.id, b.estado) ? 1 : 0;
     return bTop - aTop;
   });
+
+  const completados = historial.filter((b) => b.estado === "completado");
+  const totalGastado = completados.reduce((sum, b) => sum + Number(b.monto), 0);
 
   return (
     <div>
@@ -85,9 +135,9 @@ export default async function BookingsPage() {
         </a>
       </div>
 
-      {sorted.length > 0 ? (
+      {sortedActivas.length > 0 ? (
         <ul className="mt-6 flex flex-col gap-3">
-          {sorted.map((b) => {
+          {sortedActivas.map((b) => {
             const destacada = confirmadaYPagada(b.id, b.estado);
             const dias = diasParaEmpezar(b.fecha_inicio);
             const faltan = b.estado === "aceptado" ? faltanLabel(dias) : null;
@@ -137,9 +187,9 @@ export default async function BookingsPage() {
         </ul>
       ) : (
         <div className="mt-6 rounded-2xl border border-dashed border-foreground/20 p-6">
-          <p className="font-semibold">Todavía no tenés reservas</p>
+          <p className="font-semibold">No tenés reservas activas</p>
           <p className="mt-1 text-sm text-foreground/60">
-            Buscá un cuidador para tu mascota y hacé tu primera reserva.
+            Buscá un cuidador para tu mascota y hacé tu próxima reserva.
           </p>
           <a
             href="/buscar-cuidador"
@@ -147,6 +197,86 @@ export default async function BookingsPage() {
           >
             Buscar cuidador
           </a>
+        </div>
+      )}
+
+      {historial.length > 0 && (
+        <div className="mt-10">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold">Historial</h2>
+            {completados.length > 0 && (
+              <p className="text-sm text-foreground/60">
+                {completados.length} cuidado
+                {completados.length === 1 ? "" : "s"} completado
+                {completados.length === 1 ? "" : "s"} ·{" "}
+                <span className="font-semibold text-foreground">
+                  ${totalGastado} en total
+                </span>
+              </p>
+            )}
+          </div>
+
+          <ul className="mt-4 flex flex-col gap-2">
+            {historial.map((b) => {
+              const miPuntaje = miReviewMap.get(b.id);
+              const suPuntaje = suReviewMap.get(b.id);
+              const motivo =
+                b.estado === "cancelado" && b.motivo_cancelacion
+                  ? MOTIVO_LABEL[b.motivo_cancelacion] ?? null
+                  : null;
+
+              return (
+                <li key={b.id}>
+                  <a
+                    href={`/reservas/${b.id}`}
+                    className="flex flex-col gap-2 rounded-xl border border-foreground/10 p-4 text-sm transition hover:border-brand/40 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {petMap.get(b.pet_id) ?? "Mascota"} con{" "}
+                        {caregiverMap.get(b.caregiver_id) ?? "cuidador"}
+                      </p>
+                      <p className="mt-0.5 text-foreground/60">
+                        {b.fecha_inicio} → {b.fecha_fin} · ${b.monto}
+                        {motivo && (
+                          <span className="text-foreground/50"> · {motivo}</span>
+                        )}
+                      </p>
+                      {b.estado === "completado" && (
+                        <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-foreground/60">
+                          {miPuntaje != null ? (
+                            <span className="flex items-center gap-1">
+                              Tu reseña:
+                              <StarIcon className="h-3.5 w-3.5 text-brand" />
+                              {miPuntaje}
+                            </span>
+                          ) : (
+                            <span className="font-medium text-brand">
+                              Todavía no dejaste tu reseña
+                            </span>
+                          )}
+                          {suPuntaje != null && (
+                            <span className="flex items-center gap-1">
+                              Te calificaron:
+                              <StarIcon className="h-3.5 w-3.5 text-brand" />
+                              {suPuntaje}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <span
+                      className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-medium ${
+                        ESTADO_COLOR[b.estado] ?? "bg-foreground/10"
+                      }`}
+                    >
+                      {ESTADO_LABEL[b.estado] ?? b.estado}
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
     </div>

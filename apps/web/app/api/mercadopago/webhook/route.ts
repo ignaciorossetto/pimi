@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { notificarEventoBooking } from "@/lib/notifications/eventos";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -96,6 +97,10 @@ export async function POST(request: NextRequest) {
       console.error("[Pimi] Error actualizando payments desde webhook:", error);
       return NextResponse.json({ ok: false }, { status: 500 });
     }
+
+    // Email al cuidador: cuidado confirmado y pagado. Idempotente vía
+    // notification_log — MP puede notificar el mismo pago varias veces.
+    await notificarEventoBooking(bookingId, "pago_confirmado");
   } else if (status === "rejected" || status === "cancelled") {
     await admin
       .from("payments")

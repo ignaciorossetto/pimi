@@ -1,5 +1,7 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { sendEmail } from "@/lib/notifications/email";
+import { eventoEmail } from "@/lib/notifications/templates";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
 
   const { data: liquidacion } = await admin
     .from("liquidaciones")
-    .select("id, caregiver_id, estado")
+    .select("id, caregiver_id, estado, monto_total")
     .eq("id", liquidacionId)
     .maybeSingle();
 
@@ -116,6 +118,27 @@ export async function POST(request: NextRequest) {
       { error: "Subimos el comprobante, pero no pudimos actualizar la liquidación." },
       { status: 500 },
     );
+  }
+
+  // Email al cuidador con el comprobante disponible. Sin notification_log:
+  // la transición pendiente→pagada ocurre una sola vez (el update de
+  // arriba exige estado='pendiente'), así que no puede duplicarse.
+  const { data: caregiver } = await admin
+    .from("profiles")
+    .select("nombre, email")
+    .eq("id", liquidacion.caregiver_id)
+    .maybeSingle();
+
+  if (caregiver?.email) {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+    const { subject, html } = eventoEmail({
+      nombreDestinatario: caregiver.nombre || caregiver.email.split("@")[0],
+      titulo: `Te transferimos $${Number(liquidacion.monto_total).toFixed(0)} 💸`,
+      cuerpo: `Ya está hecha la transferencia de tu liquidación por <strong>$${Number(liquidacion.monto_total).toFixed(0)}</strong>. Podés ver el detalle de los cuidados incluidos y descargar el comprobante desde tu panel de pagos.`,
+      ctaUrl: `${siteUrl}/cuidador/pagos/${liquidacion.id}`,
+      ctaLabel: "Ver comprobante",
+    });
+    await sendEmail({ to: caregiver.email, subject, html });
   }
 
   return NextResponse.json({ ok: true });

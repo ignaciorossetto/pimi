@@ -6,6 +6,7 @@ import { CheckinSalidaGate } from "@/components/booking/CheckinSalidaGate";
 import { CheckinTimeline } from "@/components/booking/CheckinTimeline";
 import { ChatThread } from "@/components/booking/ChatThread";
 import { PaymentPanel } from "@/components/booking/PaymentPanel";
+import { ReportarProblemaForm } from "@/components/booking/ReportarProblemaForm";
 import { ReviewForm } from "@/components/booking/ReviewForm";
 import { StarIcon } from "@/components/icons";
 import { ESTADO_COLOR, ESTADO_LABEL } from "@/lib/bookings/labels";
@@ -54,6 +55,7 @@ export default async function BookingDetailPage({ params }: PageProps) {
     { data: simulacionSetting },
     { data: miReview },
     { data: suReview },
+    { data: disputa },
   ] = await Promise.all([
     supabase
       .from("pets")
@@ -97,6 +99,11 @@ export default async function BookingDetailPage({ params }: PageProps) {
       .select("puntaje, comentario")
       .eq("booking_id", booking.id)
       .eq("autor_id", otherPartyId)
+      .maybeSingle(),
+    supabase
+      .from("booking_disputas")
+      .select("estado, motivo, resolucion, created_at, resuelta_at")
+      .eq("booking_id", booking.id)
       .maybeSingle(),
   ]);
 
@@ -162,6 +169,25 @@ export default async function BookingDetailPage({ params }: PageProps) {
         </span>
       </div>
 
+      {isOwner &&
+        booking.estado === "cancelado" &&
+        booking.motivo_cancelacion === "vencida_sin_respuesta" && (
+          <div className="mt-4 rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5">
+            <p className="font-semibold">Esta solicitud venció sin respuesta</p>
+            <p className="mt-1 text-sm text-foreground/60">
+              El cuidador no respondió antes de la fecha de inicio, así que
+              la solicitud se canceló sola. Podés buscar otro cuidador para
+              fechas nuevas.
+            </p>
+            <a
+              href="/buscar-cuidador"
+              className="mt-3 inline-block rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark"
+            >
+              Buscar cuidador
+            </a>
+          </div>
+        )}
+
       {isCaregiver &&
         booking.estado === "cancelado" &&
         booking.motivo_cancelacion === "otro_cuidador_elegido" && (
@@ -205,6 +231,50 @@ export default async function BookingDetailPage({ params }: PageProps) {
           simulationMode={simulationMode}
         />
       </Suspense>
+
+      {/* Disputa: estado si ya existe, o botón para abrirla (solo dueño,
+          solo mientras el pago sigue retenido — la promesa de las 48hs). */}
+      {disputa ? (
+        <div
+          className={`mt-6 rounded-2xl border p-5 ${
+            disputa.estado === "abierta"
+              ? "border-red-200 bg-red-50/50"
+              : "border-foreground/10 bg-foreground/[0.03]"
+          }`}
+        >
+          <p className="font-semibold">
+            {disputa.estado === "abierta"
+              ? "Problema reportado — en revisión"
+              : disputa.resolucion === "reembolso"
+                ? "Disputa resuelta: reembolso al dueño"
+                : "Disputa resuelta: pago liberado al cuidador"}
+          </p>
+          <p className="mt-1 text-sm text-foreground/70">
+            {disputa.estado === "abierta"
+              ? isOwner
+                ? "El pago quedó congelado mientras el equipo de Pimi revisa tu reporte. Te podemos contactar por email."
+                : "El dueño reportó un problema con este cuidado. El pago quedó congelado mientras el equipo de Pimi lo revisa — te podemos contactar por email para escuchar tu versión."
+              : isOwner
+                ? disputa.resolucion === "reembolso"
+                  ? "El equipo te va a devolver el pago. Si en unos días no lo ves, escribinos."
+                  : "Tras revisar el caso, el pago se liberó al cuidador."
+                : disputa.resolucion === "reembolso"
+                  ? "Tras revisar el caso, el pago se le devolvió al dueño."
+                  : "Tras revisar el caso, tu pago fue liberado con normalidad."}
+          </p>
+          {isOwner && (
+            <p className="mt-2 text-xs text-foreground/50">
+              Tu reporte: “{disputa.motivo}”
+            </p>
+          )}
+        </div>
+      ) : (
+        isOwner &&
+        payment?.estado === "retenido" &&
+        (booking.estado === "en_curso" || booking.estado === "completado") && (
+          <ReportarProblemaForm bookingId={booking.id} />
+        )
+      )}
 
       {pet && (
         <div className="mt-6 rounded-2xl border border-foreground/10 p-5">

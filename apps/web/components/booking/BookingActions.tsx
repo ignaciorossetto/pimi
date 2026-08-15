@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { pingNotificacionBooking } from "@/lib/notifications/ping";
 
 type Props = {
   bookingId: string;
@@ -42,6 +43,12 @@ export function BookingActions({ bookingId }: Props) {
       setLoading(null);
       return;
     }
+
+    // Email al dueño con la decisión (fire-and-forget).
+    pingNotificacionBooking(
+      bookingId,
+      nuevoEstado === "aceptado" ? "solicitud_aceptada" : "solicitud_rechazada",
+    );
 
     router.refresh();
   }

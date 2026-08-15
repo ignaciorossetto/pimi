@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { notificarEventoBooking } from "@/lib/notifications/eventos";
 import { calcularComision } from "@/lib/payments/comision";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -133,6 +134,10 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+
+  // Mismo email que el webhook real — así el flujo simulado también
+  // permite probar las notificaciones de punta a punta.
+  await notificarEventoBooking(booking.id, "pago_confirmado");
 
   return NextResponse.json({ ok: true });
 }

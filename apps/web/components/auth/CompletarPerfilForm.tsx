@@ -58,9 +58,17 @@ export function CompletarPerfilForm({
       return;
     }
 
+    // tyc_aceptados_at: las cuentas de Google no pasan por el signUp con
+    // metadata (ver migración 0034) — la constancia de aceptación de los
+    // términos se registra acá, en su único paso de onboarding.
     const { error: profileError } = await supabase
       .from("profiles")
-      .update({ nombre, telefono: telefono || null, roles })
+      .update({
+        nombre,
+        telefono: telefono || null,
+        roles,
+        tyc_aceptados_at: new Date().toISOString(),
+      })
       .eq("id", user.id);
 
     if (profileError) {
@@ -203,6 +211,37 @@ export function CompletarPerfilForm({
           </div>
         </>
       )}
+
+      <label className="flex items-start gap-2 text-xs text-foreground/60">
+        <input
+          type="checkbox"
+          required
+          className={`mt-0.5 h-4 w-4 rounded border-foreground/30 ${
+            isCaregiver ? "text-accent focus:ring-accent" : "text-brand focus:ring-brand"
+          }`}
+        />
+        <span>
+          Acepto los{" "}
+          <a
+            href="/terminos"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-brand hover:underline"
+          >
+            Términos y Condiciones
+          </a>{" "}
+          y la{" "}
+          <a
+            href="/privacidad"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-brand hover:underline"
+          >
+            Política de Privacidad
+          </a>{" "}
+          de Pimi.
+        </span>
+      </label>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

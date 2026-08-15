@@ -43,6 +43,12 @@ export function Footer() {
           >
             Crear cuenta
           </a>
+          <a href="/terminos" className="hover:text-foreground">
+            Términos y Condiciones
+          </a>
+          <a href="/privacidad" className="hover:text-foreground">
+            Privacidad
+          </a>
         </nav>
       </div>
       <div className="border-t border-foreground/10 px-6 py-4 text-center text-xs text-foreground/40">

@@ -132,6 +132,10 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
       p_especie: mascotaSeleccionada?.especie ?? null,
       p_tamano: mascotaSeleccionada?.tamano ?? null,
       p_edad: mascotaSeleccionada?.edad ?? null,
+      // Disponibilidad real (migración 0033): excluye cuidadores con un
+      // cuidado confirmado superpuesto a estas fechas.
+      p_desde: params.desde || null,
+      p_hasta: params.hasta || null,
     });
 
     if (error) {
@@ -146,6 +150,25 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
         "Tuvimos un problema buscando cuidadores. Si el error persiste, avisale a soporte.";
     } else {
       results = (data as CaregiverResult[] | null) ?? [];
+
+      // Analítica (A7): qué se busca y cuántos resultados devuelve — el
+      // dato clave para saber dónde faltan cuidadores. Best-effort: si
+      // falla no rompe la búsqueda (la RLS de events permite insertar
+      // eventos propios).
+      await supabase.from("events").insert({
+        user_id: user.id,
+        tipo_evento: "busqueda_ejecutada",
+        metadata: {
+          servicio: params.servicio || null,
+          radio_km: radio,
+          con_ubicacion: lat != null && lng != null,
+          especie: mascotaSeleccionada?.especie ?? null,
+          tamano: mascotaSeleccionada?.tamano ?? null,
+          desde: params.desde,
+          hasta: params.hasta,
+          resultados: results.length,
+        },
+      });
     }
   }
 
@@ -379,8 +402,9 @@ export default async function BuscarCuidadorPage({ searchParams }: PageProps) {
             !searchError && (
               <p className="mt-4 text-sm text-foreground/60">
                 No encontramos cuidadores para esa búsqueda todavía. Probá
-                ampliando el radio, o puede ser que los cuidadores cerca
-                tuyo no acepten el tamaño/edad de tu mascota.
+                ampliando el radio o cambiando las fechas — puede ser que
+                los cuidadores cerca tuyo ya estén ocupados esos días, o
+                que no acepten el tamaño/edad de tu mascota.
               </p>
             )
           )}

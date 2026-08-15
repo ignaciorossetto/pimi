@@ -3,6 +3,7 @@ import { MobileNav } from "@/components/dashboard/MobileNav";
 const NAV_LINKS = [
   { href: "/cuidador", label: "Inicio" },
   { href: "/cuidador/pagos", label: "Pagos" },
+  { href: "/cuidador/historial", label: "Historial" },
 ];
 
 /**

@@ -15,7 +15,6 @@
     "@supabase/supabase-js": "^2.45.0",
     "@supabase/ssr": "^0.5.0",
     "zod": "^3.23.0",
-    "@pimi/shared": "*",
     "leaflet": "^1.9.4"
   },
   "devDependencies": {

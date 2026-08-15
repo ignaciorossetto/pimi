@@ -27,6 +27,36 @@ export async function POST(request: NextRequest) {
   }
 
   const admin = createAdminClient();
+
+  // Congelamiento por disputa: si la reserva está 'disputado', este pago
+  // NO se puede liberar por el camino normal — solo se resuelve desde
+  // /api/admin/disputas/resolver (que decide entre reembolso o
+  // liberación). Sin este check, el botón genérico de "Liberar pago" del
+  // resumen podría pisar una disputa abierta.
+  const { data: payment } = await admin
+    .from("payments")
+    .select("booking_id")
+    .eq("id", paymentId)
+    .maybeSingle();
+
+  if (payment) {
+    const { data: booking } = await admin
+      .from("bookings")
+      .select("estado")
+      .eq("id", payment.booking_id)
+      .maybeSingle();
+
+    if (booking?.estado === "disputado") {
+      return NextResponse.json(
+        {
+          error:
+            "Esta reserva tiene una disputa abierta — resolvela desde la sección de disputas.",
+        },
+        { status: 409 },
+      );
+    }
+  }
+
   const { error } = await admin
     .from("payments")
     .update({ estado: "liberado", liberado_at: new Date().toISOString() })
