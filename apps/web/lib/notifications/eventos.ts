@@ -46,7 +46,13 @@ export async function notificarEventoBooking(
     if (!booking) return { sent: false };
 
     // 1) El estado real tiene que coincidir con el evento declarado.
-    const estadoEsperado: Record<EventoBooking, (b: typeof booking) => boolean> = {
+    // NonNullable: maybeSingle() tipa booking como T | null, y aunque el
+    // early-return de arriba ya lo descartó, el "typeof booking" dentro de
+    // la anotación no hereda ese narrowing.
+    const estadoEsperado: Record<
+      EventoBooking,
+      (b: NonNullable<typeof booking>) => boolean
+    > = {
       solicitud_nueva: (b) => b.estado === "solicitado",
       solicitud_aceptada: (b) => b.estado === "aceptado",
       // Rechazo manual del cuidador: cancelado SIN motivo (los cancelados
